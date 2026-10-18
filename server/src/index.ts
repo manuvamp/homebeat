@@ -15,7 +15,8 @@ import { refreshDevices, ringMode } from './ring/index.ts'
 import { apiRoutes } from './routes/api.ts'
 import { ringRoutes } from './routes/ring.ts'
 
-const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'warn' }, bodyLimit: 2 * 1024 * 1024 })
+// Real Ring device IDs are ~120 characters; Fastify's default 100-character param limit would answer 414.
+const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'warn' }, bodyLimit: 2 * 1024 * 1024, routerOptions: { maxParamLength: 512 } })
 await app.register(formbody)
 await app.register(ringRoutes)
 await app.register(apiRoutes)

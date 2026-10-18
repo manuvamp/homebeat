@@ -98,8 +98,12 @@ Homebeat has three Ring modes, shown in the header and in Settings:
 1. **Ring Developer Playground** (no Ring device needed): open
    [the Playground](https://developer.amazon.com/ring/console/playground), click *Generate Token*, and paste it
    in Homebeat → Settings → Ring connection (or set `RING_ACCESS_TOKEN`). Homebeat discovers the Playground
-   devices and polls their Event History; simulate a Package, Vehicle or Motion event in the Playground and
-   watch it become a moment. Tokens last 30 minutes.
+   Device and polls its Event History. Under *Simulate live view event*, click Package, Vehicle or Motion: when
+   the clip ends, Homebeat reads the event, pulls frames through the image API and runs the funnel. Tested
+   against the live API: Vehicle → "Maria arrived, on time" (the aide's car matched on-device, free); Package →
+   "Delivery left at the door"; Motion (birds at a feeder) → dropped on-device, never shown. *Live* streams the
+   Playground Device over WHEP. Tokens last 30 minutes; the Playground's simulated events are live views with no
+   `sub_type`, so Homebeat classifies them itself ([friction log #11](docs/FRICTION_LOG.md)).
 2. **Linked Ring Appstore app:** set `RING_CLIENT_ID`, `RING_CLIENT_SECRET`, `RING_HMAC_KEY` and register
    `/ring/token-exchange`, `/ring/link` and `/ring/webhook` as the app's URLs. (`RING_REFRESH_TOKEN` skips linking.)
 3. **Offline simulator** (no Ring account): used automatically when neither is configured, and labelled as such.

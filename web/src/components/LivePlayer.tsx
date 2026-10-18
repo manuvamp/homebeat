@@ -249,33 +249,30 @@ export function LivePlayer({ device, parentName, autoStart }: { device: Device; 
   const pct = max ? left / max : 0
   return (
     <div>
+      {/* Status sits above the picture, never on it: Ring's watermark (logo, device and partner, time) stays fully visible. */}
+      <div className="mb-3 flex min-h-14 items-center gap-2">
+        {phase === 'live' && (
+          <>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-urgent px-2.5 py-1 text-[12px] font-bold tracking-wider text-white">
+              <span className="size-2 animate-pulse rounded-full bg-white" aria-hidden /> LIVE
+            </span>
+            <span className="text-[15px] font-medium text-ink-soft">{device.name}</span>
+            {isMock() && <span className="text-[13px] text-ink-mute">· Simulated feed (sample data)</span>}
+            <span className="ml-auto" role="timer" aria-live="off" aria-label={`${left} seconds left`}>
+              <CountdownRing pct={pct} left={left} />
+            </span>
+          </>
+        )}
+      </div>
       <Frame poster={posterFor(device)} dim={phase !== 'live'}>
         <video
           ref={videoRef}
-          className={cx('absolute inset-0 size-full object-cover', phase === 'live' ? 'opacity-100' : 'opacity-0')}
+          className={cx('absolute inset-0 size-full object-contain', phase === 'live' ? 'opacity-100' : 'opacity-0')}
           autoPlay
           playsInline
           muted={muted}
           aria-label={`Live video from ${device.name}`}
         />
-        {phase === 'live' && (
-          <>
-            <div className="absolute top-3 left-3 flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-urgent px-2.5 py-1 text-[12px] font-bold tracking-wider text-white">
-                <span className="size-2 animate-pulse rounded-full bg-white" aria-hidden /> LIVE
-              </span>
-              <span className="rounded-full bg-black/45 px-2.5 py-1 text-[13px] font-medium text-white backdrop-blur-sm">{device.name}</span>
-            </div>
-            <div className="absolute top-3 right-3" role="timer" aria-live="off" aria-label={`${left} seconds left`}>
-              <CountdownRing pct={pct} left={left} />
-            </div>
-            {isMock() && (
-              <span className="absolute bottom-3 left-3 rounded-full bg-black/45 px-2.5 py-1 text-[12px] font-medium text-white/90 backdrop-blur-sm">
-                Simulated feed (sample data)
-              </span>
-            )}
-          </>
-        )}
         {phase === 'idle' && (
           <Overlay>
             <Button size="lg" icon={Play} onClick={() => void start()}>
@@ -364,7 +361,7 @@ function CountdownRing({ pct, left }: { pct: number; left: number }) {
   const r = 20
   const c = 2 * Math.PI * r
   return (
-    <span className="relative grid size-14 place-items-center rounded-full bg-black/45 backdrop-blur-sm">
+    <span className="relative grid size-14 place-items-center rounded-full bg-[#1b2420]">
       <svg viewBox="0 0 48 48" className="absolute inset-0 size-14 -rotate-90" aria-hidden>
         <circle cx="24" cy="24" r={r} fill="none" stroke="rgb(255 255 255 / 0.25)" strokeWidth="3" />
         <circle

@@ -9,8 +9,11 @@ import { config } from '../config.ts'
 type Detector = (image: unknown, opts: { threshold: number; percentage?: boolean }) => Promise<{ label: string; score: number; box: { xmin: number; ymin: number; xmax: number; ymax: number } }[]>
 type ZeroShot = (image: unknown, labels: string[], opts?: { hypothesis_template?: string }) => Promise<{ label: string; score: number }[]>
 
+type Embedder = (image: unknown) => Promise<number[]>
+
 let detectorP: Promise<Detector> | null = null
 let clipP: Promise<ZeroShot> | null = null
+let embedP: Promise<Embedder> | null = null
 
 async function transformers() {
   const t = await import('@huggingface/transformers')
@@ -45,6 +48,31 @@ function clip(): Promise<ZeroShot> {
   )
   return clipP
 }
+
+// CLIP image embeddings (same ViT-B/32 weights as the zero-shot stage), for "is this the same view?".
+function embedder(): Promise<Embedder> {
+  embedP ??= transformers().then(async (t) => {
+    const id = 'Xenova/clip-vit-base-patch32'
+    const processor = await t.AutoProcessor.from_pretrained(id)
+    const model = await t.CLIPVisionModelWithProjection.from_pretrained(id, { dtype: 'q8' })
+    return async (image: unknown) => {
+      const { image_embeds } = await model(await processor(image))
+      const v = Array.from(image_embeds.data as Float32Array)
+      const n = Math.hypot(...v) || 1
+      return v.map((x) => x / n)
+    }
+  })
+  return embedP
+}
+
+// Cosine similarity of two frames. On real Ring Playground frames: the same doorstep 0.96-0.98, a different
+// view 0.52-0.73. Used before a re-check draws a conclusion from a frame ("package gone").
+export async function viewSimilarity(a: Buffer, b: Buffer): Promise<number> {
+  const embed = await embedder()
+  const [x, y] = [await embed(await rawImage(a)), await embed(await rawImage(b))]
+  return x.reduce((sum, v, i) => sum + v * y[i], 0)
+}
+export const SAME_VIEW = 0.85
 
 export const PERSON = new Set(['person'])
 export const VEHICLE = new Set(['car', 'truck', 'bus', 'motorcycle', 'bicycle'])

@@ -1,6 +1,6 @@
 // Picks the Ring backend: the real Partner API whenever a Playground token or linked account exists,
 // the offline simulator otherwise. Also turns JSON:API device bundles into Homebeat's Device shape.
-import { writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Device, DeviceKind, Household } from '../../../shared/types.ts'
 import { publish } from '../bus.ts'
@@ -84,6 +84,12 @@ export const chime = () => devices.all().find((d) => d.kind === 'chime' && d.onl
 export function saveMedia(id: string, bytes: Buffer): string {
   writeFileSync(join(config.dataDir, 'media', `${id}.jpg`), bytes)
   return `/api/media/${id}.jpg`
+}
+
+export function mediaBytes(url?: string): Buffer | undefined {
+  const file = url?.match(/^\/api\/media\/([\w-]+\.jpg)$/)?.[1]
+  const path = file ? join(config.dataDir, 'media', file) : ''
+  return path && existsSync(path) ? readFileSync(path) : undefined
 }
 
 // Live views Homebeat itself opened. Ring records every live view as an `on_demand` history event; ours must

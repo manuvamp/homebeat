@@ -49,7 +49,7 @@ const DEBOUNCE_MS = 25_000
 const PERSON_LABELS: { label: string; type: VisitorType; activity?: Verdict['activity'] }[] = [
   { label: 'a home care worker or nurse wearing scrubs or a uniform, carrying a bag', type: 'care_worker' },
   { label: 'a delivery driver carrying a cardboard package', type: 'delivery', activity: 'delivering' },
-  { label: 'an elderly woman at her own front door', type: 'resident' },
+  { label: 'an older adult at their own front door', type: 'resident' },
   { label: 'a worker in a high-visibility vest or work clothes', type: 'service' },
   { label: 'a person in everyday clothes', type: 'unknown' },
 ]
@@ -329,7 +329,7 @@ async function askVisionModel(event: RingEventRecord, ctx: FunnelContext, jpeg: 
     ctx.packageOutstanding ? 'A package was delivered earlier and may still be on the doorstep.' : '',
     dets.length ? `An on-device detector saw: ${dets.slice(0, 6).map((d) => `${d.label} ${d.score.toFixed(2)}`).join(', ')}.` : '',
     ctx.customQuestions.length ? `Also answer these yes/no questions about the frame:\n${ctx.customQuestions.map((q) => `- rule_id ${q.ruleId}: ${q.question}`).join('\n')}` : '',
-    `Return ONLY a JSON object with keys: people (int), visitor_type ("care_worker"|"delivery"|"family"|"service"|"unknown"|"resident"|"none"), activity ("arriving"|"leaving"|"waiting"|"passing"|"delivering"|"collecting"|"unknown"), package_present (bool), vehicle (short description or null), matches_expected_visit (true/false/null), expected_schedule_id (id or null), concern ("none"|"low"|"high"), description (one short neutral sentence, max 18 words), custom (array of {rule_id, answer}), confidence (0-1).`,
+    `Return ONLY a JSON object with keys: people (int), visitor_type ("care_worker"|"delivery"|"family"|"service"|"unknown"|"resident"|"none"), activity ("arriving"|"leaving"|"waiting"|"passing"|"delivering"|"collecting"|"unknown"), package_present (bool), vehicle (short description or null), matches_expected_visit (true/false/null; true only if a person or their vehicle fitting that visit is visible), expected_schedule_id (id or null), concern ("none"|"low"|"high"), description (one short neutral sentence, max 18 words), custom (array of {rule_id, answer}), confidence (0-1).`,
   ]
     .filter(Boolean)
     .join('\n')

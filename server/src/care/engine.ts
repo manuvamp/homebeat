@@ -5,8 +5,9 @@ import type { Device, Moment } from '../../../shared/types.ts'
 import { config } from '../config.ts'
 import { getSetting, setSetting } from '../db.ts'
 import { packageStillThere, runFunnel, type Verdict } from '../pipeline/funnel.ts'
+import { SAME_VIEW, viewSimilarity } from '../pipeline/localVision.ts'
 import { mediaFloor } from '../ring/auth.ts'
-import { api, chime, saveMedia } from '../ring/index.ts'
+import { api, chime, mediaBytes, saveMedia } from '../ring/index.ts'
 import { devices, events, household, moments, type RingEventRecord } from '../store.ts'
 import { atLocal, clock, hhmmToMinutes, inWindow, localDate, localMinutes } from '../time.ts'
 import { cancelJobs, onJob, schedule } from './jobs.ts'
@@ -19,6 +20,8 @@ interface PackageState {
   deviceId: string
   deliveredAt: number
   checks: number
+  snapshotUrl?: string // the delivery frame, to make sure a re-check is looking at the same view
+  remindedAt?: number
 }
 
 const PKG_KEY = 'package_outstanding'
@@ -183,11 +186,11 @@ export async function processEvent(event: RingEventRecord) {
       body: `${verdict.description} Homebeat will look again at ${clock(Math.max(event.at, Date.now()) + checkInMs)} and remind ${parent} if it's still outside.`,
       actions: ['watch_live'],
     })
-    setPackage({ momentId: m.id, deviceId: device.id, deliveredAt: event.at, checks: 0 })
+    setPackage({ momentId: m.id, deviceId: device.id, deliveredAt: event.at, checks: 0, snapshotUrl: analysis.snapshotUrl })
     schedule('package_check', Date.now() + checkInMs, { deviceId: device.id })
     return
   }
-  if (pkg && verdict.packagePresent && event.at - pkg.deliveredAt >= packageCheckMs()) {
+  if (pkg && verdict.packagePresent && event.at - (pkg.remindedAt ?? pkg.deliveredAt) >= packageCheckMs()) {
     // A new event whose frame still shows the package, after the reminder time: that is the follow-up look.
     cancelJobs('package_check', () => true)
     await packageWaiting(pkg, device.id, analysis.snapshotUrl, verdict.confidence)
@@ -239,7 +242,10 @@ export async function processEvent(event: RingEventRecord) {
 
 function matchVisit(verdict: Verdict, open: OpenVisit[], event: RingEventRecord): OpenVisit | undefined {
   if (!open.length) return undefined
-  if (verdict.scheduleId) {
+  // An arrival needs someone at the door, their car, or a doorbell press: a parcel on the step alone isn't a visit,
+  // even if the vision model offers an expected_schedule_id for it.
+  if (!verdict.people && !verdict.vehicle && event.kind !== 'ding') return undefined
+  if (verdict.scheduleId && verdict.matchesExpected !== false) {
     const byId = open.find((o) => o.schedule.id === verdict.scheduleId)
     if (byId) return byId
   }
@@ -289,6 +295,17 @@ onJob('package_check', async ({ deviceId, attempt = 0 }: { deviceId: string; att
     if (attempt < 5) schedule('package_check', Date.now() + (fastDemo() ? 20_000 : 10 * 60_000), { deviceId, attempt: attempt + 1 })
     return
   }
+  // Only judge "still there / gone" from the same view as the delivery frame. A different scene (the camera
+  // was moved or blocked, another component, or the Playground's single device playing another clip) proves
+  // nothing, so it counts as no fresh look.
+  const before = mediaBytes(pkg.snapshotUrl)
+  if (before) {
+    const similarity = await viewSimilarity(before, shot.bytes).catch(() => 1)
+    if (similarity < SAME_VIEW) {
+      if (attempt < 5) schedule('package_check', Date.now() + (fastDemo() ? 20_000 : 10 * 60_000), { deviceId, attempt: attempt + 1 })
+      return
+    }
+  }
   const check = await packageStillThere(shot.bytes)
   const url = saveMedia(`pkg_${Date.now().toString(36)}`, shot.bytes)
   const minutesOut = Math.round((Date.now() - pkg.deliveredAt) / 60_000)
@@ -322,7 +339,7 @@ async function packageWaiting(pkg: PackageState, deviceId: string, snapshotUrl: 
     actions: ['play_chime', 'call_parent', 'watch_live'],
   })
   if (pkg.checks < 2) {
-    setPackage({ ...pkg, checks: pkg.checks + 1 })
+    setPackage({ ...pkg, checks: pkg.checks + 1, remindedAt: Date.now() })
     schedule('package_check', Date.now() + (fastDemo() ? 60_000 : 30 * 60_000), { deviceId })
   } else setPackage(null)
 }
