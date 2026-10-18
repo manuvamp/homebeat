@@ -126,7 +126,7 @@ async function download(path: string, body: unknown): Promise<MediaResult> {
     redirect: 'manual',
     accept: '*/*',
   })
-  if (res.status === 303 || res.status === 302 || res.status === 307) {
+  if ([301, 302, 303, 307, 308].includes(res.status)) {
     const location = res.headers.get('Location')
     if (!location) throw new RingApiError(res.status, 'Ring media redirect without Location')
     return media(await fetch(location))
@@ -228,6 +228,18 @@ export const ringApi: RingApi = {
       name: [body.data.attributes?.first_name, body.data.attributes?.last_name].filter(Boolean).join(' ') || body.data.attributes?.name,
     }
   },
+}
+
+// Subscriptions Query API: the paid plan or free trial the Ring user has for Homebeat (shown in Settings).
+export async function subscriptions(): Promise<{ subType: string; status: string; expiresAt?: number; devices: number }[]> {
+  const body = await json<{ data: JsonApiResource<Record<string, string>>[] }>(await ringFetch('/v1/accounts/me/subscriptions'))
+  return body.data.map((s) => ({
+    subType: s.attributes.sub_type,
+    status: s.attributes.status,
+    expiresAt: s.attributes.expires_at ? Date.parse(s.attributes.expires_at) : undefined,
+    // Location-scoped subscriptions cover a whole location; count devices only when listed.
+    devices: ((s.relationships?.devices as unknown as { data?: unknown[] })?.data ?? []).length,
+  }))
 }
 
 // App-Integrations API, used once per account during one-way account linking.

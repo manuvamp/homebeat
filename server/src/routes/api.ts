@@ -14,7 +14,7 @@ import { config } from '../config.ts'
 import { setSetting, uid } from '../db.ts'
 import { pollHistory, ringError } from '../ingest.ts'
 import { clearToken, tokenState, usePlaygroundToken } from '../ring/auth.ts'
-import { apiLog, RingApiError } from '../ring/client.ts'
+import { apiLog, RingApiError, subscriptions as ringSubscriptions } from '../ring/client.ts'
 import { api, refreshDevices, ringMode } from '../ring/index.ts'
 import { simulate, type SimAction } from '../ring/sim.ts'
 import { analyses, devices, events, household, moments, rules, schedules, visits } from '../store.ts'
@@ -238,7 +238,11 @@ export async function apiRoutes(app: FastifyInstance) {
     reply.hijack()
   })
 
-  app.get('/api/setup/status', async () => ({ mode: ringMode(), tokenExpiresAt: tokenState().expiresAt, accountLinked: tokenState().mode === 'linked', devices: devices.all(), error: ringError() || undefined }))
+  app.get('/api/setup/status', async () => {
+    // Only a linked app has a Ring-side subscription or trial; the Playground and simulator don't.
+    const subscription = ringMode() === 'linked' ? await ringSubscriptions().then((s) => s.find((x) => x.status === 'active') ?? null).catch(() => null) : null
+    return { mode: ringMode(), tokenExpiresAt: tokenState().expiresAt, accountLinked: tokenState().mode === 'linked', devices: devices.all(), subscription, error: ringError() || undefined }
+  })
 
   app.post('/api/setup/token', async (req, reply) => {
     const { token } = (req.body ?? {}) as { token?: string }

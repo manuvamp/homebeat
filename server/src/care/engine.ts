@@ -49,7 +49,8 @@ async function frameFor(event: RingEventRecord, device: Device): Promise<{ jpeg:
       } catch (err) {
         lastError = (err as Error).message.slice(0, 80)
         const status = (err as { status?: number }).status
-        if (status && status !== 416 && status !== 404 && status < 500) return { error: lastError }
+        // 416 MEDIA_NOT_FOUND / 425 RECORDING_NOT_READY: the recording is still uploading, so wait and retry.
+        if (status && ![404, 416, 425].includes(status) && status < 500) return { error: lastError }
       }
     }
   }

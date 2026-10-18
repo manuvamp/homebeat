@@ -170,15 +170,22 @@ export async function runFunnel(event: RingEventRecord, ctx: FunnelContext): Pro
       const hintHit = vehicleHints.find((v) => best.label.startsWith(`a ${v.schedule.vehicleHint}`))
       // Resolve here only when it is clear-cut AND low stakes; after-dark and custom questions always go to Stage 3.
       const highStakes = ctx.afterDark || ctx.customQuestions.length > 0
+      // Who it is isn't enough: arrival vs departure needs direction, from a second cheap zero-shot pass.
+      let direction: { activity: Verdict['activity']; score: number } | null = null
+      if (best.score >= 0.6 && !highStakes && personHit && personHit.type !== 'unknown' && !personHit.activity) {
+        const dir = await zeroShot(frame.jpeg, DIRECTION_LABELS.map((d) => d.label))
+        const top = DIRECTION_LABELS.find((d) => d.label === dir[0].label)!
+        direction = { activity: top.activity, score: dir[0].score }
+      }
       if (best.score >= 0.6 && !highStakes) {
-        if (personHit && personHit.type !== 'unknown') {
+        if (personHit && personHit.type !== 'unknown' && (personHit.activity || (direction && direction.score >= 0.55))) {
           resolved = {
             visitorType: personHit.type,
-            activity: personHit.activity ?? (ctx.inProgress.length && personHit.type === 'care_worker' ? 'leaving' : 'arriving'),
+            activity: personHit.activity ?? direction!.activity,
             packagePresent: personHit.type === 'delivery' || sub === 'package_delivery' ? true : undefined,
             people: people.length || 1,
-            description: describeFromLabel(personHit.type, carried),
-            confidence: best.score,
+            description: describeFromLabel(personHit.type, carried, personHit.activity ?? direction!.activity),
+            confidence: Math.min(best.score, direction?.score ?? 1),
           }
         } else if (hintHit) {
           resolved = {
@@ -239,17 +246,24 @@ function shortLabel(label: string) {
   return label.replace(/^an? /, '').split(',')[0]
 }
 
-function describeFromLabel(type: VisitorType, carried: Detection[]): string {
+const DIRECTION_LABELS: { label: string; activity: Verdict['activity'] }[] = [
+  { label: 'a person walking toward the camera and the front door', activity: 'arriving' },
+  { label: 'a person walking away from the house, seen from behind', activity: 'leaving' },
+  { label: 'a person standing still at the front door, waiting', activity: 'waiting' },
+]
+
+function describeFromLabel(type: VisitorType, carried: Detection[], activity?: Verdict['activity']): string {
   const bag = carried.length ? ` with a ${carried[0].label}` : ''
+  const where = activity === 'leaving' ? 'leaving' : activity === 'waiting' ? 'waiting at the door' : 'coming to the door'
   switch (type) {
     case 'care_worker':
-      return `Someone in a care uniform at the door${bag}.`
+      return `Someone in a care uniform${bag}, ${where}.`
     case 'delivery':
       return 'A delivery driver with a package.'
     case 'resident':
-      return `${household.get().parentName} at the front door.`
+      return activity === 'leaving' ? `${household.get().parentName} heading out.` : `${household.get().parentName} at the front door.`
     case 'service':
-      return `A worker in work clothes at the door${bag}.`
+      return `A worker in work clothes${bag}, ${where}.`
     default:
       return 'A person at the door.'
   }
