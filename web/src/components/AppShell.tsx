@@ -45,6 +45,10 @@ function ConnectionStatus({ compact }: { compact?: boolean }) {
   } else if (stream !== 'open') {
     tone = stream === 'connecting' ? 'ok' : 'warn'
     label = stream === 'connecting' ? 'Connecting…' : 'Reconnecting…'
+  } else if (today.household.ringMode === 'playground' && (today.household.tokenExpiresAt ?? Infinity) < Date.now()) {
+    // Playground tokens last 30 minutes; after that nothing new arrives until the family pastes a fresh one.
+    tone = 'warn'
+    label = 'Playground token expired'
   } else if (devicesOffline) {
     tone = 'warn'
     label = `${devicesOffline} device${devicesOffline > 1 ? 's' : ''} offline`
