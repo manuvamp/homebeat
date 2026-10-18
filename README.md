@@ -51,6 +51,12 @@ week, and then the things they actually worry about go unnoticed:
 - **Ring's Computer Vision Guidelines as running code:** a four-stage funnel (Ring `sub_type` → on-device
   object gate → on-device attire/vehicle match → vision model) so cost follows *events that matter*, not raw
   motion. Every moment shows its own trace (stage, milliseconds, cost), and the app shows the month's totals.
+  On real frames from the Ring Developer Playground (`npx tsx scripts/eval.ts`), the funnel was right on 6 of
+  6 with one vision-model call, the same accuracy as sending every frame to the model at one sixth of the cost
+  ([results](server/eval/results.json)).
+- **Tested against the live Ring API**, not only a mock: the Playground's Package, Vehicle and Motion clips run
+  through Homebeat as real events, frames, clips and a WHEP stream. What that turned up (16 entries, with
+  workarounds) is in [docs/FRICTION_LOG.md](docs/FRICTION_LOG.md).
 - **Ring's UX design guide:** passwordless account linking, a confirmation screen with each device's online
   status, a skippable first-visit tour, "Ring app" guidance for Smart Alerts and motion zones, graceful handling
   of end-to-end-encrypted devices, WCAG 2.2 AA.
@@ -138,3 +144,9 @@ Everything in this repository was written between October 19 and October 23, 202
 ## License
 
 [MIT](LICENSE)
+
+`server/eval/frames/playground_*.jpg` are frames from the Ring Developer Playground's sample clips, as returned
+by the Ring image API (with Ring's watermark). The package clip is "Thief stealing our package" by YouTube user
+[frollard](https://www.youtube.com/@frollard), used under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
+and clipped by Ring; the vehicle and motion clips are the Playground's other samples. They are not covered by
+the MIT license.

@@ -4,7 +4,8 @@
 //   npx tsx scripts/eval.ts            (uses AI_PROVIDER etc. from .env)
 //
 // Cases live in server/eval/cases.json: { file, subType, kind, afterDark?, expect: { visitorType?, activity?,
-// package?, vehicle?, stop? } }. Images are server/assets/sim/*.jpg or server/eval/frames/*.jpg.
+// package?, vehicle?, stop? } }. Images are server/assets/sim/*.jpg (generated scenes for the offline
+// simulator) or server/eval/frames/*.jpg (real frames from the Ring Developer Playground, `origin` set).
 import { mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -19,6 +20,7 @@ interface Case {
   subType: string
   kind?: 'motion' | 'ding'
   afterDark?: boolean
+  origin?: 'playground_live'
   expect: { visitorType?: string; activity?: string; package?: boolean; vehicle?: boolean; stop?: boolean }
 }
 
@@ -55,7 +57,7 @@ for (const [i, c] of cases.entries()) {
   }
   const jpeg = readFileSync(path)
   const out = await runFunnel(
-    { id: `eval_${i}`, deviceId: device.id, at: Date.now() - i * 60_000, kind: c.kind ?? 'motion', subType: c.subType, source: 'sim' },
+    { id: `eval_${i}`, deviceId: device.id, at: Date.now() - i * 60_000, kind: c.kind ?? 'motion', subType: c.subType, source: c.origin ? 'history' : 'sim', origin: c.origin },
     {
       device,
       afterDark: Boolean(c.afterDark),
@@ -82,11 +84,14 @@ for (const [i, c] of cases.entries()) {
       maxTokens: 200,
     }).catch(() => null)
     naiveCost += config.ai.visionCallUsd
-    const nv = naive && naive.visitor_type !== 'none' ? { visitorType: naive.visitor_type, activity: naive.activity, packagePresent: naive.package_present, vehicle: naive.vehicle } : naive ? null : undefined
+    // Judged like the funnel: "nothing here" only when the model sees no person, no package and no vehicle.
+    const nothing = naive && naive.visitor_type === 'none' && !naive.package_present && !naive.vehicle
+    const nv = naive && !nothing ? { visitorType: naive.visitor_type === 'none' ? undefined : naive.visitor_type, activity: naive.activity, packagePresent: naive.package_present, vehicle: naive.vehicle } : naive ? null : undefined
     naiveOk += nv !== undefined && judge(c, nv) ? 1 : 0
   }
   rows.push({
     file: c.file,
+    realRing: Boolean(c.origin),
     subType: c.subType,
     expected: c.expect,
     reachedStage: reached,
@@ -96,13 +101,15 @@ for (const [i, c] of cases.entries()) {
     ms: out.analysis.totalMs,
     costUsd: out.analysis.totalCostUsd,
   })
-  console.log(`${ok ? 'OK ' : 'MISS'} ${c.file.padEnd(22)} ${c.subType.padEnd(16)} stage ${reached}  ${String(out.analysis.totalMs).padStart(5)} ms  ${out.verdict ? `${out.verdict.visitorType ?? '-'} / ${out.verdict.activity ?? '-'}` : 'stopped'}`)
+  console.log(`${ok ? 'OK ' : 'MISS'} ${c.file.padEnd(26)} ${c.subType.padEnd(16)} stage ${reached}  ${String(out.analysis.totalMs).padStart(5)} ms  ${out.verdict ? `${out.verdict.visitorType ?? '-'} / ${out.verdict.activity ?? '-'}` : 'stopped'}`)
 }
 
 const n = rows.length
 const reachedVision = rows.filter((r) => r.reachedStage === 3).length
+const real = rows.filter((r) => r.realRing)
 const summary = {
   cases: n,
+  realRingFrames: { cases: real.length, correct: real.filter((r) => r.ok).length, visionCalls: real.filter((r) => r.reachedStage === 3).length },
   funnel: { correct: funnelOk, accuracy: n ? funnelOk / n : 0, visionCalls: reachedVision, costUsd: funnelCost, avgMs: n ? Math.round(rows.reduce((s, r) => s + (r.ms as number), 0) / n) : 0 },
   everyFrameToVision: config.ai.provider !== 'none' ? { correct: naiveOk, accuracy: n ? naiveOk / n : 0, visionCalls: n, costUsd: naiveCost } : null,
   model: config.ai.provider === 'bedrock' ? config.ai.bedrockModel : config.ai.visionModel,

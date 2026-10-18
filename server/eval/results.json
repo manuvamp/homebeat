@@ -1,0 +1,294 @@
+{
+  "summary": {
+    "cases": 6,
+    "realRingFrames": {
+      "cases": 6,
+      "correct": 6,
+      "visionCalls": 1
+    },
+    "funnel": {
+      "correct": 6,
+      "accuracy": 1,
+      "visionCalls": 1,
+      "costUsd": 0.0021,
+      "avgMs": 1303
+    },
+    "everyFrameToVision": {
+      "correct": 6,
+      "accuracy": 1,
+      "visionCalls": 6,
+      "costUsd": 0.012599999999999998
+    },
+    "model": "claude-haiku-5-5",
+    "at": "2026-10-18T21:41:18.550Z"
+  },
+  "rows": [
+    {
+      "file": "playground_package_a.jpg",
+      "realRing": true,
+      "subType": "unknown",
+      "expected": {
+        "package": true
+      },
+      "reachedStage": 2,
+      "stages": [
+        {
+          "stage": 0,
+          "ran": true,
+          "ms": 0,
+          "summary": "Playground event, no Ring sub_type → look at the frame"
+        },
+        {
+          "stage": 1,
+          "ran": true,
+          "ms": 977,
+          "summary": "nothing detected, no Ring label → check the scene"
+        },
+        {
+          "stage": 2,
+          "ran": true,
+          "ms": 1136,
+          "summary": "cardboard package left on the doorstep 0.77 → resolved, no vision model needed"
+        },
+        {
+          "stage": 3,
+          "ran": false,
+          "ms": 0,
+          "summary": "not needed"
+        }
+      ],
+      "verdict": {
+        "visitorType": "delivery",
+        "activity": "delivering",
+        "packagePresent": true,
+        "people": 0,
+        "description": "A package left on the doorstep.",
+        "confidence": 0.7651230692863464
+      },
+      "ok": true,
+      "ms": 2115,
+      "costUsd": 0
+    },
+    {
+      "file": "playground_package_b.jpg",
+      "realRing": true,
+      "subType": "unknown",
+      "expected": {
+        "package": true
+      },
+      "reachedStage": 3,
+      "stages": [
+        {
+          "stage": 0,
+          "ran": true,
+          "ms": 0,
+          "summary": "Playground event, no Ring sub_type → look at the frame"
+        },
+        {
+          "stage": 1,
+          "ran": true,
+          "ms": 370,
+          "summary": "potted plant 0.79"
+        },
+        {
+          "stage": 2,
+          "ran": true,
+          "ms": 186,
+          "summary": "cardboard package left on the doorstep 0.54 → unsure, escalate"
+        },
+        {
+          "stage": 3,
+          "ran": true,
+          "ms": 3580,
+          "summary": "Snowy front step with a cardboard package and a potted plant; no people visible."
+        }
+      ],
+      "verdict": {
+        "activity": "unknown",
+        "packagePresent": true,
+        "vehicle": null,
+        "people": 0,
+        "concern": "none",
+        "matchesExpected": false,
+        "custom": [],
+        "description": "Snowy front step with a cardboard package and a potted plant; no people visible.",
+        "confidence": 0.9
+      },
+      "ok": true,
+      "ms": 4136,
+      "costUsd": 0.0021
+    },
+    {
+      "file": "playground_vehicle_a.jpg",
+      "realRing": true,
+      "subType": "unknown",
+      "expected": {
+        "vehicle": true
+      },
+      "reachedStage": 2,
+      "stages": [
+        {
+          "stage": 0,
+          "ran": true,
+          "ms": 0,
+          "summary": "Playground event, no Ring sub_type → look at the frame"
+        },
+        {
+          "stage": 1,
+          "ran": true,
+          "ms": 261,
+          "summary": "car 0.97, car 0.95, car 0.95, car 0.94"
+        },
+        {
+          "stage": 2,
+          "ran": true,
+          "ms": 116,
+          "summary": "silver hatchback pulling in or parked 0.90 → resolved, no vision model needed"
+        },
+        {
+          "stage": 3,
+          "ran": false,
+          "ms": 0,
+          "summary": "not needed"
+        }
+      ],
+      "verdict": {
+        "visitorType": "care_worker",
+        "activity": "arriving",
+        "vehicle": "silver hatchback",
+        "scheduleId": "s_aide",
+        "matchesExpected": true,
+        "description": "A silver hatchback in the driveway, matching Maria (BrightCare)'s car.",
+        "confidence": 0.9013898372650146
+      },
+      "ok": true,
+      "ms": 378,
+      "costUsd": 0
+    },
+    {
+      "file": "playground_vehicle_b.jpg",
+      "realRing": true,
+      "subType": "unknown",
+      "expected": {
+        "vehicle": true
+      },
+      "reachedStage": 2,
+      "stages": [
+        {
+          "stage": 0,
+          "ran": true,
+          "ms": 0,
+          "summary": "Playground event, no Ring sub_type → look at the frame"
+        },
+        {
+          "stage": 1,
+          "ran": true,
+          "ms": 266,
+          "summary": "car 0.95, car 0.93, car 0.92, car 0.82"
+        },
+        {
+          "stage": 2,
+          "ran": true,
+          "ms": 112,
+          "summary": "silver hatchback pulling in or parked 0.66 → resolved, no vision model needed"
+        },
+        {
+          "stage": 3,
+          "ran": false,
+          "ms": 0,
+          "summary": "not needed"
+        }
+      ],
+      "verdict": {
+        "visitorType": "care_worker",
+        "activity": "arriving",
+        "vehicle": "silver hatchback",
+        "scheduleId": "s_aide",
+        "matchesExpected": true,
+        "description": "A silver hatchback in the driveway, matching Maria (BrightCare)'s car.",
+        "confidence": 0.6623056530952454
+      },
+      "ok": true,
+      "ms": 378,
+      "costUsd": 0
+    },
+    {
+      "file": "playground_birds_a.jpg",
+      "realRing": true,
+      "subType": "unknown",
+      "expected": {
+        "stop": true
+      },
+      "reachedStage": 2,
+      "stages": [
+        {
+          "stage": 0,
+          "ran": true,
+          "ms": 0,
+          "summary": "Playground event, no Ring sub_type → look at the frame"
+        },
+        {
+          "stage": 1,
+          "ran": true,
+          "ms": 291,
+          "summary": "nothing detected, no Ring label → check the scene"
+        },
+        {
+          "stage": 2,
+          "ran": true,
+          "ms": 140,
+          "summary": "birds or an animal 0.91 → not a care event, stop"
+        },
+        {
+          "stage": 3,
+          "ran": false,
+          "ms": 0,
+          "summary": "not needed"
+        }
+      ],
+      "verdict": null,
+      "ok": true,
+      "ms": 433,
+      "costUsd": 0
+    },
+    {
+      "file": "playground_birds_b.jpg",
+      "realRing": true,
+      "subType": "unknown",
+      "expected": {
+        "stop": true
+      },
+      "reachedStage": 1,
+      "stages": [
+        {
+          "stage": 0,
+          "ran": true,
+          "ms": 0,
+          "summary": "Playground event, no Ring sub_type → look at the frame"
+        },
+        {
+          "stage": 1,
+          "ran": true,
+          "ms": 375,
+          "summary": "only bird → stop"
+        },
+        {
+          "stage": 2,
+          "ran": false,
+          "ms": 0,
+          "summary": "not needed"
+        },
+        {
+          "stage": 3,
+          "ran": false,
+          "ms": 0,
+          "summary": "not needed"
+        }
+      ],
+      "verdict": null,
+      "ok": true,
+      "ms": 375,
+      "costUsd": 0
+    }
+  ]
+}
