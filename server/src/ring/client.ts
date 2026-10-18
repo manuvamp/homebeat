@@ -177,8 +177,8 @@ export const ringApi: RingApi = {
     const image_options = { format: 'jpeg', ...(req.width ? { resolution: { width: req.width, height: req.height ?? Math.round((req.width * 9) / 16) } } : {}) }
     const body =
       req.type === 'at_timestamp'
-        ? { type: 'at_timestamp', timestamp: req.timestamp, image_options }
-        : { type: 'latest_in_range', start_timestamp: req.start, ...(req.end ? { end_timestamp: req.end } : {}), image_options }
+        ? { type: 'at_timestamp', timestamp: Math.round(req.timestamp), image_options }
+        : { type: 'latest_in_range', start_timestamp: Math.round(req.start), ...(req.end ? { end_timestamp: Math.round(req.end) } : {}), image_options }
     return download(`/v1/devices/${encodeURIComponent(deviceId)}/media/image/download`, {
       ...body,
       ...(componentId ? { components: [{ component_id: componentId }] } : {}),
@@ -187,8 +187,8 @@ export const ringApi: RingApi = {
 
   clip(deviceId, timestamp, durationMs) {
     return download(`/v1/devices/${encodeURIComponent(deviceId)}/media/video/download`, {
-      timestamp,
-      duration: Math.min(durationMs, 900_000),
+      timestamp: Math.round(timestamp),
+      duration: Math.round(Math.min(durationMs, 900_000)),
       video_options: { codec: 'avc' },
     })
   },

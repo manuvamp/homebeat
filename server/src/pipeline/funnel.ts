@@ -54,6 +54,9 @@ const PERSON_LABELS: { label: string; type: VisitorType; activity?: Verdict['act
   { label: 'a person in everyday clothes', type: 'unknown' },
 ]
 
+const PACKAGE_LABEL = 'a cardboard package left on the doorstep'
+const ANIMAL_LABEL = 'birds or an animal, with no people'
+
 function stage(stage: StageResult['stage'], name: string, partial: Partial<StageResult>): StageResult {
   return { stage, name, ran: false, passed: false, ms: 0, costUsd: 0, summary: '', ...partial }
 }
@@ -110,6 +113,8 @@ export async function runFunnel(event: RingEventRecord, ctx: FunnelContext): Pro
   else if (recent.length) s0 = { pass: false, why: `${sub} burst → merged with event ${Math.round((event.at - recent[0].at) / 1000)} s earlier` }
   else if (sub === 'vehicle' && !ctx.afterDark && !ctx.watchVehicles && !ctx.openVisits.some((v) => v.schedule.vehicleHint) && !ctx.inProgress.length)
     s0 = { pass: false, why: 'vehicle, no visit expected → passing traffic' }
+  else if (event.origin === 'playground_live') s0 = { pass: true, why: 'Playground event, no Ring sub_type → look at the frame' }
+  else if (sub === 'unknown') s0 = { pass: true, why: 'no Ring sub_type → look at the frame' }
   else s0 = { pass: true, why: `${sub} → process` }
   push(stage(0, STAGE_NAMES[0], { ran: true, passed: s0.pass, ms: Date.now() - t, summary: s0.why, detail: { subType: sub, kind: event.kind } }))
   if (!s0.pass) return finish(null)
@@ -138,14 +143,19 @@ export async function runFunnel(event: RingEventRecord, ctx: FunnelContext): Pro
   const animals = dets.filter((d) => ANIMAL.has(d.label))
   const carried = dets.filter((d) => CARRIED.has(d.label))
   if (config.cv.stage1 && !analysis.stages.find((s) => s.stage === 1)) {
-    const relevant = people.length > 0 || vehicles.length > 0 || sub === 'package_delivery' || event.kind === 'ding'
+    // Packages aren't a class the on-device detector knows. When Ring gave no label at all, "nothing detected"
+    // can't rule a delivery out, so the frame goes on to the zero-shot stage; an animal alone still stops here.
+    const unlabelled = sub === 'unknown' && !animals.length
+    const relevant = people.length > 0 || vehicles.length > 0 || sub === 'package_delivery' || event.kind === 'ding' || unlabelled
     const top = dets.slice(0, 4).map((d) => `${d.label} ${d.score.toFixed(2)}`).join(', ') || 'nothing detected'
     push(
       stage(1, STAGE_NAMES[1], {
         ran: true,
         passed: relevant,
         ms: Date.now() - t,
-        summary: relevant ? top : animals.length ? `only ${animals[0].label} → stop` : `${top} → stop`,
+        summary: relevant
+          ? people.length || vehicles.length || dets.length ? top : `${top}, no Ring label → check the scene`
+          : animals.length ? `only ${animals[0].label} → stop` : `${top} → stop`,
         detail: { detections: dets.slice(0, 8) },
       }),
     )
@@ -160,7 +170,8 @@ export async function runFunnel(event: RingEventRecord, ctx: FunnelContext): Pro
       const vehicleHints = [...ctx.openVisits, ...ctx.inProgress].filter((v) => v.schedule.vehicleHint)
       const labels = [
         ...(people.length || !vehicles.length ? PERSON_LABELS.map((p) => p.label) : []),
-        ...vehicleHints.map((v) => `a ${v.schedule.vehicleHint} parked in a driveway`),
+        ...(!people.length && !vehicles.length ? [PACKAGE_LABEL, ANIMAL_LABEL] : []),
+        ...vehicleHints.map((v) => `a ${v.schedule.vehicleHint} pulling in or parked`),
         ...(vehicles.length ? ['a delivery van', 'an unfamiliar car on the street'] : []),
         'an empty doorstep with no one there',
       ]
@@ -168,6 +179,9 @@ export async function runFunnel(event: RingEventRecord, ctx: FunnelContext): Pro
       const best = scores[0]
       const personHit = PERSON_LABELS.find((p) => p.label === best.label)
       const hintHit = vehicleHints.find((v) => best.label.startsWith(`a ${v.schedule.vehicleHint}`))
+      const packageHit = best.label === PACKAGE_LABEL
+      // Birds and pets the detector missed: stop here too, still without a paid call.
+      const animalOnly = best.label === ANIMAL_LABEL && best.score >= 0.5
       // Resolve here only when it is clear-cut AND low stakes; after-dark and custom questions always go to Stage 3.
       const highStakes = ctx.afterDark || ctx.customQuestions.length > 0
       // Who it is isn't enough: arrival vs departure needs direction, from a second cheap zero-shot pass.
@@ -187,6 +201,15 @@ export async function runFunnel(event: RingEventRecord, ctx: FunnelContext): Pro
             description: describeFromLabel(personHit.type, carried, personHit.activity ?? direction!.activity),
             confidence: Math.min(best.score, direction?.score ?? 1),
           }
+        } else if (packageHit) {
+          resolved = {
+            visitorType: 'delivery',
+            activity: 'delivering',
+            packagePresent: true,
+            people: 0,
+            description: 'A package left on the doorstep.',
+            confidence: best.score,
+          }
         } else if (hintHit) {
           resolved = {
             visitorType: hintHit.schedule.visitorType,
@@ -202,9 +225,9 @@ export async function runFunnel(event: RingEventRecord, ctx: FunnelContext): Pro
       push(
         stage(2, STAGE_NAMES[2], {
           ran: true,
-          passed: !resolved,
+          passed: !resolved && !animalOnly,
           ms: Date.now() - t,
-          summary: `${shortLabel(best.label)} ${best.score.toFixed(2)}${resolved ? ' → resolved, no vision model needed' : highStakes ? ' → high stakes, verify' : ' → unsure, escalate'}`,
+          summary: `${shortLabel(best.label)} ${best.score.toFixed(2)}${animalOnly ? ' → not a care event, stop' : resolved ? ' → resolved, no vision model needed' : highStakes ? ' → high stakes, verify' : ' → unsure, escalate'}`,
           detail: { scores: scores.slice(0, 5) },
         }),
       )
@@ -213,6 +236,7 @@ export async function runFunnel(event: RingEventRecord, ctx: FunnelContext): Pro
     }
   }
   if (resolved) return finish(resolved)
+  if (analysis.stages.find((s) => s.stage === 2 && s.ran && !s.passed)) return finish(null)
 
   // ---------- Stage 3: vision model (paid) ----------
   if (!aiEnabled()) {
@@ -274,6 +298,8 @@ function metadataVerdict(event: RingEventRecord, ctx: FunnelContext, people = 0,
   const sub = event.subType
   if (sub === 'package_delivery') return { visitorType: 'delivery', activity: 'delivering', packagePresent: true, description: 'Ring detected a package delivery.', confidence: 0.7 }
   if (sub === 'vehicle' || (vehicles && !people)) return { vehicle: 'vehicle', activity: 'arriving', description: 'Ring detected a vehicle.', confidence: 0.6 }
+  // No label from Ring and no frame to look at: nothing to say, so no moment.
+  if (sub === 'unknown' && !people) return { activity: 'unknown', people: 0, description: 'Activity with no Ring label and no frame to check.', confidence: 0.3 }
   if (event.kind === 'ding') return { visitorType: 'unknown', activity: 'waiting', people: 1, description: 'Someone rang the doorbell.', confidence: 0.7 }
   return { visitorType: 'unknown', activity: 'unknown', people: people || 1, description: 'Ring detected a person at the door.', confidence: 0.5 }
 }

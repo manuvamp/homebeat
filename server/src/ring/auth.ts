@@ -11,6 +11,7 @@ interface TokenState {
   accessToken?: string
   refreshToken?: string
   expiresAt?: number
+  issuedAt?: number
 }
 
 const KEY = 'ring_token'
@@ -19,25 +20,38 @@ export function tokenState(): TokenState {
   const stored = getSetting<TokenState>(KEY, { mode: 'none' })
   if (stored.mode !== 'none') return stored
   if (config.ring.refreshToken) return { mode: 'linked', refreshToken: config.ring.refreshToken }
-  if (config.ring.accessToken) return { mode: 'playground', accessToken: config.ring.accessToken, expiresAt: jwtExpiry(config.ring.accessToken) }
+  if (config.ring.accessToken) return { mode: 'playground', accessToken: config.ring.accessToken, expiresAt: jwtExpiry(config.ring.accessToken), issuedAt: jwtClaim(config.ring.accessToken, 'iat') }
   return stored
 }
 
-// Playground tokens are JWT-like; read `exp` when present so the UI can show a countdown.
-export function jwtExpiry(token: string): number | undefined {
+// Playground tokens are JWTs; read `exp` (for the countdown) and `iat` when present.
+function jwtClaim(token: string, claim: 'exp' | 'iat'): number | undefined {
   const part = token.split('.')[1]
   if (!part) return undefined
   try {
     const payload = JSON.parse(Buffer.from(part.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'))
-    return typeof payload.exp === 'number' ? payload.exp * 1000 : undefined
+    return typeof payload[claim] === 'number' ? payload[claim] * 1000 : undefined
   } catch {
     return undefined
   }
 }
+export const jwtExpiry = (token: string) => jwtClaim(token, 'exp')
+
+// A Playground token can only read media recorded after it was issued: earlier timestamps answer
+// 403 TIME_RANGE_NOT_AUTHORIZED. Snapshot ranges are clamped to this.
+export function mediaFloor(): number {
+  const state = tokenState()
+  return state.mode === 'playground' ? (state.issuedAt ?? 0) : 0
+}
 
 export function usePlaygroundToken(token: string) {
   // The Playground issues tokens valid for 30 minutes; fall back to that when the token is opaque.
-  return setSetting<TokenState>(KEY, { mode: 'playground', accessToken: token.trim(), expiresAt: jwtExpiry(token) ?? Date.now() + 30 * 60_000 })
+  return setSetting<TokenState>(KEY, {
+    mode: 'playground',
+    accessToken: token.trim(),
+    expiresAt: jwtExpiry(token) ?? Date.now() + 30 * 60_000,
+    issuedAt: jwtClaim(token, 'iat'),
+  })
 }
 
 export function useLinkedTokens(accessToken: string, refreshToken: string, expiresInSec: number) {

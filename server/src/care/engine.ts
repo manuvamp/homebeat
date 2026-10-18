@@ -5,6 +5,7 @@ import type { Device, Moment } from '../../../shared/types.ts'
 import { config } from '../config.ts'
 import { getSetting, setSetting } from '../db.ts'
 import { packageStillThere, runFunnel, type Verdict } from '../pipeline/funnel.ts'
+import { mediaFloor } from '../ring/auth.ts'
 import { api, chime, saveMedia } from '../ring/index.ts'
 import { devices, events, household, moments, type RingEventRecord } from '../store.ts'
 import { atLocal, clock, hhmmToMinutes, inWindow, localDate, localMinutes } from '../time.ts'
@@ -35,22 +36,25 @@ export function fastDemo() {
 async function frameFor(event: RingEventRecord, device: Device): Promise<{ jpeg: Buffer; url: string } | { error: string }> {
   if (device.encrypted) return { error: 'end-to-end encrypted device' }
   const ring = api()
-  const at = event.at + 1500 // a beat after the trigger, when the subject is usually in frame
+  const at = frameTime(event)
   let lastError = ''
-  for (const wait of [0, 3_000, 6_000, 10_000]) {
+  // Events read back from history can be older than their media: wait a little longer for those.
+  const waits = event.source === 'history' ? [0, 3_000, 6_000, 10_000, 20_000, 30_000] : [0, 3_000, 6_000, 10_000]
+  for (const wait of waits) {
     if (wait) await new Promise((r) => setTimeout(r, wait))
     for (const req of [
       { type: 'at_timestamp' as const, timestamp: Math.min(at, Date.now()), width: 1280, height: 720 },
-      { type: 'latest_in_range' as const, start: event.at - 5_000, end: Math.min(event.at + 30_000, Date.now()), width: 1280, height: 720 },
+      { type: 'latest_in_range' as const, start: Math.max(event.at - 5_000, mediaFloor()), end: Math.min(event.endAt ?? event.at + 30_000, Date.now()), width: 1280, height: 720 },
     ]) {
       try {
         const shot = await ring.snapshot(event.deviceId, req)
         return { jpeg: shot.bytes, url: saveMedia(`ev_${safe(event.id)}`, shot.bytes) }
       } catch (err) {
-        lastError = (err as Error).message.slice(0, 80)
+        lastError = ringErrorText(err as Error)
         const status = (err as { status?: number }).status
         // 416 MEDIA_NOT_FOUND / 425 RECORDING_NOT_READY: the recording is still uploading, so wait and retry.
-        if (status && ![404, 416, 425].includes(status) && status < 500) return { error: lastError }
+        // (latest_in_range over a span with no media has also answered 422 GRECO_NO_VALID_KEY.)
+        if (status && ![404, 416, 422, 425].includes(status) && status < 500) return { error: lastError }
       }
     }
   }
@@ -58,6 +62,28 @@ async function frameFor(event: RingEventRecord, device: Device): Promise<{ jpeg:
 }
 
 const safe = (id: string) => id.replace(/[^a-zA-Z0-9_-]/g, '').slice(-60)
+
+// "Ring media 416: {json}" → "416 MEDIA_NOT_FOUND: No media found in time range ..."
+function ringErrorText(err: Error): string {
+  const m = /^Ring media (\d+): (\{.*)$/s.exec(err.message)
+  if (!m) return err.message.slice(0, 160)
+  try {
+    const e = JSON.parse(m[2]).errors?.[0]
+    return `${m[1]} ${e?.code ?? ''}: ${e?.detail ?? ''}`.slice(0, 160)
+  } catch {
+    return err.message.slice(0, 160)
+  }
+}
+
+// Which moment of the event to look at. A live trigger: a beat after it starts, when the subject is usually in
+// frame. A finished event from history (start and end known): about a third of the way in, past the first
+// seconds where a car or person is often still entering the scene.
+function frameTime(event: RingEventRecord): number {
+  const duration = event.endAt ? event.endAt - event.at : 0
+  if (duration < 6_000) return event.at + 1500
+  // Whole milliseconds: Ring rejects a fractional timestamp as an invalid request body (403).
+  return Math.round(event.at + Math.min(Math.max(duration * 0.3, 1500), duration - 1000))
+}
 
 export async function processEvent(event: RingEventRecord) {
   const device = devices.get(event.deviceId)
@@ -144,19 +170,27 @@ export async function processEvent(event: RingEventRecord) {
 
   // 4. Deliveries, with a later "is it still outside?" check.
   const pkg = outstandingPackage()
-  if ((verdict.visitorType === 'delivery' || event.subType === 'package_delivery') && verdict.packagePresent !== false && !pkg) {
-    const { minutes } = packageMinutes()
-    const checkInMs = fastDemo() ? 60_000 : minutes * 60_000
+  // A delivery: a courier seen, Ring's package label, or a package on the step with nobody around.
+  const delivered = verdict.visitorType === 'delivery' || event.subType === 'package_delivery' || (verdict.packagePresent === true && !verdict.people)
+  if (delivered && verdict.packagePresent !== false && !pkg) {
+    const checkInMs = packageCheckMs()
     const m = createMoment({
       ...base,
       kind: 'delivery',
       severity: 'note',
       title: 'Delivery left at the door',
-      body: `${verdict.description} Homebeat will look again at ${clock(event.at + checkInMs)} and remind ${parent} if it's still outside.`,
+      // The check is scheduled from now: an event read back from history can be a few minutes old.
+      body: `${verdict.description} Homebeat will look again at ${clock(Math.max(event.at, Date.now()) + checkInMs)} and remind ${parent} if it's still outside.`,
       actions: ['watch_live'],
     })
     setPackage({ momentId: m.id, deviceId: device.id, deliveredAt: event.at, checks: 0 })
     schedule('package_check', Date.now() + checkInMs, { deviceId: device.id })
+    return
+  }
+  if (pkg && verdict.packagePresent && event.at - pkg.deliveredAt >= packageCheckMs()) {
+    // A new event whose frame still shows the package, after the reminder time: that is the follow-up look.
+    cancelJobs('package_check', () => true)
+    await packageWaiting(pkg, device.id, analysis.snapshotUrl, verdict.confidence)
     return
   }
   if (pkg && (verdict.activity === 'collecting' || verdict.visitorType === 'resident')) {
@@ -241,14 +275,20 @@ export async function playChime(slotEvent = 'ring-appstore-event-1'): Promise<bo
 
 // ---- delayed checks ----
 
-onJob('package_check', async ({ deviceId }: { deviceId: string }) => {
+const packageCheckMs = () => (fastDemo() ? 60_000 : packageMinutes().minutes * 60_000)
+
+onJob('package_check', async ({ deviceId, attempt = 0 }: { deviceId: string; attempt?: number }) => {
   const pkg = outstandingPackage()
   if (!pkg) return
-  const parent = household.get().parentName
   const shot = await api()
-    .snapshot(deviceId, { type: 'latest_in_range', start: Date.now() - 5 * 60_000, end: Date.now(), width: 1280, height: 720 })
+    .snapshot(deviceId, { type: 'latest_in_range', start: Math.max(Date.now() - 5 * 60_000, mediaFloor()), end: Date.now(), width: 1280, height: 720 })
     .catch(() => null)
-  if (!shot) return
+  if (!shot) {
+    // No recent media (a quiet camera records nothing; the Playground only has media while a clip plays).
+    // Try again a few times; the next event at the door also counts as a fresh look (see processEvent).
+    if (attempt < 5) schedule('package_check', Date.now() + (fastDemo() ? 20_000 : 10 * 60_000), { deviceId, attempt: attempt + 1 })
+    return
+  }
   const check = await packageStillThere(shot.bytes)
   const url = saveMedia(`pkg_${Date.now().toString(36)}`, shot.bytes)
   const minutesOut = Math.round((Date.now() - pkg.deliveredAt) / 60_000)
@@ -258,6 +298,12 @@ onJob('package_check', async ({ deviceId }: { deviceId: string }) => {
     createMoment({ kind: 'delivery_collected', severity: 'calm', at: Date.now(), deviceId, snapshotUrl: url, title: 'Package brought inside', body: `The doorstep is clear again, ${minutesOut} min after the delivery.`, confidence: check.confidence })
     return
   }
+  await packageWaiting(pkg, deviceId, url, check.confidence)
+})
+
+async function packageWaiting(pkg: PackageState, deviceId: string, snapshotUrl: string | undefined, confidence: number) {
+  const parent = household.get().parentName
+  const minutesOut = Math.max(1, Math.round((Date.now() - pkg.deliveredAt) / 60_000))
   const { rule } = packageMinutes()
   const chimed = await maybeChimeForRule(rule?.compiled.actions ?? [{ type: 'chime', slot: 'ring-appstore-event-1' }])
   if (rule) ruleFired(rule)
@@ -267,19 +313,19 @@ onJob('package_check', async ({ deviceId }: { deviceId: string }) => {
     at: Date.now(),
     deviceId,
     deviceName: devices.get(deviceId)?.name,
-    snapshotUrl: url,
+    snapshotUrl,
     title: `Package still outside after ${minutesOut} min`,
     body: chimed
       ? `Homebeat played a soft chime in ${parent}'s hallway as a reminder. If it's medicine or groceries, a quick call might help.`
       : `It's still on the doorstep. If it's medicine or groceries, a quick call to ${parent} might help.`,
-    confidence: check.confidence,
+    confidence,
     actions: ['play_chime', 'call_parent', 'watch_live'],
   })
   if (pkg.checks < 2) {
     setPackage({ ...pkg, checks: pkg.checks + 1 })
     schedule('package_check', Date.now() + (fastDemo() ? 60_000 : 30 * 60_000), { deviceId })
-  }
-})
+  } else setPackage(null)
+}
 
 onJob('vehicle_check', async ({ deviceId, firstSeen, description, ruleId }: { deviceId: string; firstSeen: number; description: string; ruleId: string }) => {
   const shot = await api().snapshot(deviceId, { type: 'latest_in_range', start: Date.now() - 2 * 60_000, end: Date.now() }).catch(() => null)

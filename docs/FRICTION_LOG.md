@@ -100,4 +100,66 @@ guess, **Low** papercut.
 - **Severity:** Low (feature gap, documented as early access).
 - **Suggestion:** let partners upload short slot audio (or TTS) with user approval.
 
-<!-- More entries are added as they come up while testing against the Playground. -->
+## Testing against the Ring Developer Playground (October 18-19)
+
+### 11. The Playground's simulated events are live views, not motion events
+- **Task:** drive Homebeat's event pipeline from the Playground's "Simulate live view event" buttons.
+- **Steps:** clicked Package, Vehicle and Motion, then polled `GET /v1/history/devices/{id}/events`.
+- **Expected:** a motion (or ding) event with a `sub_type` (`package_delivery`, `vehicle`, ...), ideally
+  delivered to a webhook.
+- **Actual:** each click links a sample clip to the single "Playground Device" and opens a WHEP session. History
+  then shows one `on_demand` event (`start`/`end` = the clip length, `is_third_party_reviewed: true`, empty
+  `cv_detections`). There is no sub_type, no webhook, and no way to simulate a doorbell press or a person at the
+  door; the "Motion" clip is birds at a feeder.
+- **Severity:** Medium (the main thing a Ring app reacts to, a classified motion or ding event, can't be tested).
+- **Workaround:** in Playground mode Homebeat treats `on_demand` events it didn't open itself as unlabelled
+  motion and lets its CV funnel classify the frames (package → delivery, car → visit evidence, birds → dropped).
+- **Suggestion:** a "Simulate motion event" control that emits real `motion_detected` / `ding` events with a
+  chosen `sub_type`, to history and to a configurable webhook URL.
+
+### 12. A Playground token can't read media from before it was issued
+- **Task:** fetch a frame for an event a few minutes old.
+- **Actual:** `latest_in_range` with a start before the token's `iat` answers
+  `403 TIME_RANGE_NOT_AUTHORIZED` ("Requested time range is not within authorized boundaries"), and so does
+  `at_timestamp` for an earlier moment. Not documented.
+- **Severity:** Low-Medium (looks like a permissions bug until you compare timestamps with the JWT).
+- **Workaround:** clamp snapshot ranges to the token's `iat`.
+- **Suggestion:** document the media time window per token type.
+
+### 13. A fractional timestamp is reported as an authorization failure
+- **Task:** download the frame a third of the way into an event (`start + duration × 0.3`).
+- **Actual:** `{"timestamp": 1792357117032.2}` answers `403 REQUEST_FORBIDDEN` "Cannot authorize: invalid
+  request body". The same request with an integer timestamp returns the 303.
+- **Severity:** Medium (a 403 sends you to check tokens and scopes, not the body; cost me a restart cycle).
+- **Workaround:** round every timestamp before sending.
+- **Suggestion:** return `400` with the field name for body validation errors.
+
+### 14. The Playground device went offline mid-session, silently
+- **Task:** run the same simulation a fourth time, about 14 minutes after generating the token.
+- **Actual:** the device status flipped to `online: false` (`reported_at` 21:09:22Z); the Playground still
+  created WHEP sessions (201) and history events, but the video was black and every frame request was
+  `416 MEDIA_NOT_FOUND`. The Playground page showed no offline state, and the token couldn't be regenerated
+  until it expired.
+- **Severity:** Medium (looks like an app bug; the first three runs had worked).
+- **Workaround:** check `device-status.online` before simulating; generate a new token after expiry.
+- **Suggestion:** show device status on the Playground page and allow re-provisioning without waiting for expiry.
+
+### 15. `latest_in_range` over a span with no media leaks an internal error
+- **Actual:** `422 GRECO_NO_VALID_KEY` "No valid Greco key available for decryption" for an unencrypted device,
+  where `at_timestamp` for the same span answers `416 MEDIA_NOT_FOUND`.
+- **Severity:** Low.
+- **Workaround:** treat 422 like 416 (retry later, then give up).
+- **Suggestion:** return 416 consistently.
+
+### 16. No way to test chimes or subscriptions in the Playground
+- **Actual:** the Playground Device has `audio.customizable_slots: null` and there's no simulated chime, so chime
+  playback can't be exercised (a test call answers `400 Validation Error`). `GET /v1/accounts/me/subscriptions`
+  answers `422` "Unable to process subscription request for this user".
+- **Severity:** Low.
+- **Workaround:** Homebeat's offline simulator has a Hallway Chime with two slots.
+- **Suggestion:** a simulated chime (and a test subscription) on the Playground account.
+
+**Confirmed against the live API:** device attributes are only `name` and `image_url` (entry 7); `online` lives in
+`device-status`, not on the device (sample-app note in [FEEDBACK.md](FEEDBACK.md)); privacy zones are under
+`image_enhancements.privacy_zones`; the WHEP `Location` header carries a `?location=` query that the `DELETE`
+must keep; image and clip downloads are a 303 to a pre-signed host (fetched without the Bearer header).

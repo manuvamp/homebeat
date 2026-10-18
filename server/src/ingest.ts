@@ -8,7 +8,7 @@ import { config } from './config.ts'
 import { getSetting, setSetting } from './db.ts'
 import { processEvent } from './care/engine.ts'
 import { RingAuthError } from './ring/auth.ts'
-import { api, cameras, ringMode } from './ring/index.ts'
+import { api, cameras, isOwnLive, ringMode } from './ring/index.ts'
 import { events, household, type RingEventRecord } from './store.ts'
 
 const queue: RingEventRecord[] = []
@@ -66,7 +66,8 @@ export async function pollHistory() {
         baseline[device.id] = Date.now() - 60_000
         setSetting('history_baseline', baseline)
       }
-      const fresh = list.filter((e) => !events.get(e.id) && e.start >= baseline[device.id])
+      // A live view still in progress has no `end` yet; its frames are only complete once it ends.
+      const fresh = list.filter((e) => !events.get(e.id) && e.start >= baseline[device.id] && !(e.eventType === 'on_demand' && !e.end))
       if (!fresh.length) continue
       const subtypes = new Map<string, string>()
       if (mode !== 'offline_sim' && fresh.some((e) => e.eventType === 'motion' && !e.subType)) {
@@ -79,14 +80,19 @@ export async function pollHistory() {
         }
       }
       for (const e of fresh.sort((a, b) => a.start - b.start)) {
+        // The Playground's "Simulate live view event" buttons stream a sample clip to the Playground device;
+        // Ring records that as an on_demand event with no sub_type. Treat it as unlabelled motion so the
+        // funnel decides from the frames, exactly as it would for a motion event Ring couldn't classify.
+        const simulated = mode === 'playground' && e.eventType === 'on_demand' && !isOwnLive(device.id, e.start)
         ingest({
           id: e.id,
           deviceId: device.id,
           at: e.start,
           endAt: e.end,
-          kind: kindOf(e.eventType),
-          subType: e.subType ?? subtypes.get(e.id) ?? (e.eventType === 'motion' ? 'motion' : e.eventType),
+          kind: simulated ? 'motion' : kindOf(e.eventType),
+          subType: simulated ? 'unknown' : (e.subType ?? subtypes.get(e.id) ?? (e.eventType === 'motion' ? 'motion' : e.eventType)),
           source: mode === 'offline_sim' ? 'sim' : 'history',
+          ...(simulated ? { origin: 'playground_live' as const } : {}),
         })
       }
     }

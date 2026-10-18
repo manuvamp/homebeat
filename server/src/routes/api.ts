@@ -15,13 +15,13 @@ import { setSetting, uid } from '../db.ts'
 import { pollHistory, ringError } from '../ingest.ts'
 import { clearToken, tokenState, usePlaygroundToken } from '../ring/auth.ts'
 import { apiLog, RingApiError, subscriptions as ringSubscriptions } from '../ring/client.ts'
-import { api, refreshDevices, ringMode } from '../ring/index.ts'
+import { api, noteOwnLive, refreshDevices, ringMode } from '../ring/index.ts'
 import { simulate, type SimAction } from '../ring/sim.ts'
 import { analyses, devices, events, household, moments, rules, schedules, visits } from '../store.ts'
 import { addDays, atLocal, clock, localDate } from '../time.ts'
 
 const RANK: Record<Severity, number> = { calm: 0, note: 1, heads_up: 2, urgent: 3 }
-const live = new Map<string, { location: string; deviceId: string; timer: NodeJS.Timeout }>()
+const live = new Map<string, { location: string; deviceId: string; timer: NodeJS.Timeout; startedAt: number }>()
 
 function fail(reply: any, err: unknown) {
   const status = err instanceof RingApiError ? err.status : 400
@@ -192,12 +192,14 @@ export async function apiRoutes(app: FastifyInstance) {
     if (!device || !sdp) return reply.code(400).send({ error: 'Missing device or SDP offer' })
     if (device.encrypted) return reply.code(409).send({ error: 'encrypted' })
     try {
+      const startedAt = Date.now()
+      noteOwnLive(deviceId, startedAt)
       const { answer, location } = await api().whepOffer(deviceId, sdp)
       const sessionId = randomUUID()
       const maxSeconds = device.maxLiveSeconds ?? 30
       // Close proactively at the device limit so a forgotten tab never drains the doorbell battery.
       const timer = setTimeout(() => void closeLive(sessionId), (maxSeconds + 2) * 1000)
-      live.set(sessionId, { location, deviceId, timer })
+      live.set(sessionId, { location, deviceId, timer, startedAt })
       const res: LiveSessionResponse = { sdpAnswer: answer, sessionId, maxSeconds }
       return res
     } catch (err) {
@@ -303,5 +305,6 @@ async function closeLive(sessionId: string) {
   if (!s) return
   live.delete(sessionId)
   clearTimeout(s.timer)
+  noteOwnLive(s.deviceId, s.startedAt, Date.now())
   await api().whepClose(s.location)
 }

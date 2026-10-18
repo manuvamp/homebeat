@@ -21,7 +21,23 @@ it again. Detailed reproduction steps are in [FRICTION_LOG.md](FRICTION_LOG.md).
 
 ## Ring Developer Playground
 
-_Filled in after testing with the Playground._
+- **Used for:** the real end-to-end test. Homebeat takes a Playground token (Settings → Ring connection), finds
+  the Playground Device, polls its Event History, and pulls frames and clips through the image and video APIs.
+  The three simulated clips became Homebeat moments through the CV funnel: the Vehicle clip matched the aide's
+  car on the on-device stage ("Maria arrived, on time", no paid call), the Package clip became "Delivery left at
+  the door" (one vision-model call), and the Motion clip (birds at a feeder) was dropped on-device.
+- **Worked well:** one click to a token with no app registration; the API explorer tabs show real requests and
+  responses for every resource; the live-view dialog shows the actual WHEP request, `Location` header and SDP,
+  which is the clearest WHEP explanation in the docs. Frames come back with a watermark naming the device and
+  partner, exactly like production.
+- **Needs work:** the simulated events are `on_demand` live views with no `sub_type`, no webhook and no doorbell
+  press (friction #11); media is only readable after the token's issue time (#12); the device went offline after
+  about 14 minutes with no indication on the page, and the token couldn't be regenerated until it expired (#14);
+  there is no simulated chime (#16). The 30-minute token (#9) means re-pasting during a long session.
+- **Onboarding:** from finding the page to a first real API call took about five minutes; the time sinks were
+  the event model (live views rather than motion events) and the offline device.
+- **Would I use it again:** yes. It made a no-hardware build possible, and with motion/ding simulation and a
+  webhook it would cover nearly the whole Partner API.
 
 ## Ring Appstore docs (Get Started, API docs, UX design guide, Computer Vision Guidelines)
 
