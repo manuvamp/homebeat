@@ -513,12 +513,13 @@ export function funnelStats(days: number): FunnelStats {
     events: Math.round(1142 * k),
     stage1: Math.round(512 * k),
     stage2: Math.round(263 * k),
-    stage3: Math.round(188 * k),
+    stage3: Math.round(58 * k),
     moments: Math.round(141 * k),
     notified: Math.round(19 * k),
-    costUsd: +(1.13 * k).toFixed(2),
-    naiveCostUsd: +(6.97 * k).toFixed(2),
-    stageMs: [1, 41, 24, 1260],
-    visionCallUsd: 0.0061,
+    costUsd: +(0.12 * k).toFixed(2),
+    naiveCostUsd: +(2.4 * k).toFixed(2),
+    stageMs: [1, 610, 390, 3200],
+    visionCallUsd: 0.0021,
+    sampleEvents: 0,
   }
 }

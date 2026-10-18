@@ -56,6 +56,7 @@ const PERSON_LABELS: { label: string; type: VisitorType; activity?: Verdict['act
 
 const PACKAGE_LABEL = 'a cardboard package left on the doorstep'
 const ANIMAL_LABEL = 'birds or an animal, with no people'
+const EMPTY_LABEL = 'an empty doorstep with no one there'
 
 function stage(stage: StageResult['stage'], name: string, partial: Partial<StageResult>): StageResult {
   return { stage, name, ran: false, passed: false, ms: 0, costUsd: 0, summary: '', ...partial }
@@ -173,25 +174,33 @@ export async function runFunnel(event: RingEventRecord, ctx: FunnelContext): Pro
         ...(!people.length && !vehicles.length ? [PACKAGE_LABEL, ANIMAL_LABEL] : []),
         ...vehicleHints.map((v) => `a ${v.schedule.vehicleHint} pulling in or parked`),
         ...(vehicles.length ? ['a delivery van', 'an unfamiliar car on the street'] : []),
-        'an empty doorstep with no one there',
+        EMPTY_LABEL,
       ]
       const scores = await zeroShot(frame.jpeg, labels)
       const best = scores[0]
+      // A label only settles the event when it clearly beats the runner-up (an aide seen from behind with a
+      // shoulder bag can score "delivery driver" 0.76 with a close second).
+      const clearLead = best.score - (scores[1]?.score ?? 0) >= 0.3
       const personHit = PERSON_LABELS.find((p) => p.label === best.label)
+      // While a visit is expected or under way, a person who reads as someone else (an aide from behind can look
+      // like a courier) is checked by the vision model rather than settled here, so the visit log stays right.
+      const visitConflict = Boolean(personHit) && [...ctx.openVisits, ...ctx.inProgress].some((v) => v.schedule.visitorType !== personHit!.type)
       const hintHit = vehicleHints.find((v) => best.label.startsWith(`a ${v.schedule.vehicleHint}`))
       const packageHit = best.label === PACKAGE_LABEL
-      // Birds and pets the detector missed: stop here too, still without a paid call.
-      const animalOnly = best.label === ANIMAL_LABEL && best.score >= 0.5
-      // Resolve here only when it is clear-cut AND low stakes; after-dark and custom questions always go to Stage 3.
-      const highStakes = ctx.afterDark || ctx.customQuestions.length > 0
+      // Resolve here only when it is clear-cut AND low stakes; after-dark, doorbell presses and custom questions
+      // always go to Stage 3.
+      const highStakes = ctx.afterDark || ctx.customQuestions.length > 0 || event.kind === 'ding'
+      // Birds and pets the detector missed, or a clearly empty doorstep (the detector caught a plant or a car far
+      // down the street): stop here too, still without a paid call.
+      const nothingHere = (best.label === ANIMAL_LABEL && best.score >= 0.5) || (best.label === EMPTY_LABEL && best.score >= 0.6 && !people.length && !highStakes)
       // Who it is isn't enough: arrival vs departure needs direction, from a second cheap zero-shot pass.
       let direction: { activity: Verdict['activity']; score: number } | null = null
-      if (best.score >= 0.6 && !highStakes && personHit && personHit.type !== 'unknown' && !personHit.activity) {
+      if (best.score >= 0.6 && clearLead && !highStakes && !visitConflict && personHit && personHit.type !== 'unknown' && !personHit.activity) {
         const dir = await zeroShot(frame.jpeg, DIRECTION_LABELS.map((d) => d.label))
         const top = DIRECTION_LABELS.find((d) => d.label === dir[0].label)!
         direction = { activity: top.activity, score: dir[0].score }
       }
-      if (best.score >= 0.6 && !highStakes) {
+      if (best.score >= 0.6 && clearLead && !highStakes && !visitConflict) {
         if (personHit && personHit.type !== 'unknown' && (personHit.activity || (direction && direction.score >= 0.55))) {
           resolved = {
             visitorType: personHit.type,
@@ -225,9 +234,9 @@ export async function runFunnel(event: RingEventRecord, ctx: FunnelContext): Pro
       push(
         stage(2, STAGE_NAMES[2], {
           ran: true,
-          passed: !resolved && !animalOnly,
+          passed: !resolved && !nothingHere,
           ms: Date.now() - t,
-          summary: `${shortLabel(best.label)} ${best.score.toFixed(2)}${animalOnly ? ' → not a care event, stop' : resolved ? ' → resolved, no vision model needed' : highStakes ? ' → high stakes, verify' : ' → unsure, escalate'}`,
+          summary: `${shortLabel(best.label)} ${best.score.toFixed(2)}${nothingHere ? ' → nothing for the family, stop' : resolved ? ' → resolved, no vision model needed' : highStakes ? ' → high stakes, verify' : visitConflict ? ' → a visit is expected, verify' : ' → unsure, escalate'}`,
           detail: { scores: scores.slice(0, 5) },
         }),
       )
@@ -256,7 +265,9 @@ export async function runFunnel(event: RingEventRecord, ctx: FunnelContext): Pro
         detail: { model: config.ai.provider === 'bedrock' ? config.ai.bedrockModel : config.ai.visionModel, verdict: v },
       }),
     )
-    return finish(v)
+    // The model looked and found nobody, no parcel and no car: nothing for the family.
+    const nothing = !v.people && !v.packagePresent && !v.vehicle && !v.custom?.some((c) => c.answer)
+    return finish(nothing ? null : v)
   } catch (err) {
     console.warn('[funnel] vision model failed:', (err as Error).message)
     push(stage(3, STAGE_NAMES[3], { ran: true, passed: false, ms: Date.now() - t, summary: `vision model error → Ring sub_type fallback`, detail: { error: (err as Error).message.slice(0, 200) } }))
@@ -335,7 +346,7 @@ async function askVisionModel(event: RingEventRecord, ctx: FunnelContext, jpeg: 
     .join('\n')
   const v = await askJson<ModelVerdict>({
     system:
-      "You look at one frame from an older person's Ring doorbell or camera for Homebeat, a family care app. Describe only what is visible: clothing, uniforms, bags, packages, vehicles, what people are doing. Never identify anyone by their face or guess names or ethnicity. 'resident' means an older adult who appears to live there, coming or going. The Ring logo, device id, app name and timestamp watermarks in the corners are not part of the scene. Be calm and factual.",
+      "You look at one frame from an older person's Ring doorbell or camera for Homebeat, a family care app. Describe only what is visible: clothing, uniforms, bags, packages, vehicles, what people are doing. Never identify anyone by their face or guess names or ethnicity. 'resident' means an older adult who appears to live there, coming or going. Direction: someone with their back to the camera, heading down the steps or toward the street is 'leaving'; someone facing the camera and coming toward the door is 'arriving'; someone standing at the door facing it is 'waiting'. A distant car on the street is not a vehicle at this home (vehicle: null). The Ring logo, device id, app name and timestamp watermarks in the corners are not part of the scene. Be calm and factual.",
     prompt,
     images: [{ bytes: jpeg, mediaType: 'image/jpeg' }],
     maxTokens: 350,

@@ -167,6 +167,7 @@ export interface StageResult {
 }
 
 export interface Analysis {
+  sample?: boolean // part of the seeded sample week, not a real Ring event
   id: string
   eventId: string
   deviceId: string
@@ -197,6 +198,7 @@ export interface FunnelStats {
   naiveCostUsd: number // what sending every event to the vision model would have cost
   stageMs: [number, number, number, number] // average milliseconds per stage, over events where it ran
   visionCallUsd: number // price used for one vision-model call
+  sampleEvents: number // how many of `events` belong to the seeded sample week
 }
 
 // ---- Household / home screen ----

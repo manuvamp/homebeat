@@ -4,7 +4,7 @@
   {"file": "aide_leave.jpg", "subType": "human", "expect": {"visitorType": "care_worker", "activity": "leaving"}},
   {"file": "courier.jpg", "subType": "package_delivery", "expect": {"visitorType": "delivery", "package": true}},
   {"file": "courier.jpg", "subType": "motion", "expect": {"visitorType": "delivery", "package": true}},
-  {"file": "package.jpg", "subType": "other_motion", "expect": {"stop": true}},
+  {"file": "package.jpg", "subType": "other_motion", "expect": {"package": true}},
   {"file": "meals.jpg", "subType": "ding", "kind": "ding", "expect": {"activity": "waiting"}},
   {"file": "resident.jpg", "subType": "human", "expect": {"visitorType": "resident", "activity": "leaving"}},
   {"file": "night.jpg", "subType": "human", "afterDark": true, "expect": {"visitorType": "unknown"}},

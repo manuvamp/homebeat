@@ -1,28 +1,563 @@
 {
   "summary": {
-    "cases": 6,
+    "cases": 17,
     "realRingFrames": {
       "cases": 6,
       "correct": 6,
       "visionCalls": 1
     },
     "funnel": {
-      "correct": 6,
+      "correct": 17,
       "accuracy": 1,
-      "visionCalls": 1,
-      "costUsd": 0.0021,
-      "avgMs": 1303
+      "visionCalls": 10,
+      "costUsd": 0.021,
+      "avgMs": 3522
     },
     "everyFrameToVision": {
-      "correct": 6,
-      "accuracy": 1,
-      "visionCalls": 6,
-      "costUsd": 0.012599999999999998
+      "correct": 12,
+      "accuracy": 0.7058823529411765,
+      "visionCalls": 17,
+      "costUsd": 0.0357
     },
     "model": "claude-haiku-5-5",
-    "at": "2026-10-18T21:41:18.550Z"
+    "at": "2026-10-18T22:24:32.007Z"
   },
   "rows": [
+    {
+      "file": "empty.jpg",
+      "realRing": false,
+      "subType": "other_motion",
+      "expected": {
+        "stop": true
+      },
+      "reachedStage": 2,
+      "stages": [
+        {
+          "stage": 0,
+          "ran": true,
+          "ms": 0,
+          "summary": "other_motion → process"
+        },
+        {
+          "stage": 1,
+          "ran": true,
+          "ms": 1185,
+          "summary": "potted plant 0.92, potted plant 0.89, car 0.74, bench 0.73"
+        },
+        {
+          "stage": 2,
+          "ran": true,
+          "ms": 1264,
+          "summary": "empty doorstep with no one there 0.75 → nothing for the family, stop"
+        },
+        {
+          "stage": 3,
+          "ran": false,
+          "ms": 0,
+          "summary": "not needed"
+        }
+      ],
+      "verdict": null,
+      "ok": true,
+      "ms": 2449,
+      "costUsd": 0
+    },
+    {
+      "file": "aide_arrive.jpg",
+      "realRing": false,
+      "subType": "human",
+      "expected": {
+        "visitorType": "care_worker",
+        "activity": "arriving"
+      },
+      "reachedStage": 3,
+      "stages": [
+        {
+          "stage": 0,
+          "ran": true,
+          "ms": 1,
+          "summary": "human → process"
+        },
+        {
+          "stage": 1,
+          "ran": true,
+          "ms": 397,
+          "summary": "person 1.00, handbag 0.95, potted plant 0.91, potted plant 0.85"
+        },
+        {
+          "stage": 2,
+          "ran": true,
+          "ms": 220,
+          "summary": "delivery driver carrying a cardboard package 0.47 → a visit is expected, verify"
+        },
+        {
+          "stage": 3,
+          "ran": true,
+          "ms": 4182,
+          "summary": "Woman in navy scrubs with a work bag walks up the front steps."
+        }
+      ],
+      "verdict": {
+        "visitorType": "care_worker",
+        "activity": "arriving",
+        "packagePresent": false,
+        "vehicle": null,
+        "people": 1,
+        "concern": "none",
+        "matchesExpected": true,
+        "scheduleId": "s_aide",
+        "custom": [],
+        "description": "Woman in navy scrubs with a work bag walks up the front steps.",
+        "confidence": 0.85
+      },
+      "ok": true,
+      "ms": 4800,
+      "costUsd": 0.0021
+    },
+    {
+      "file": "aide_leave.jpg",
+      "realRing": false,
+      "subType": "human",
+      "expected": {
+        "visitorType": "care_worker",
+        "activity": "leaving"
+      },
+      "reachedStage": 3,
+      "stages": [
+        {
+          "stage": 0,
+          "ran": true,
+          "ms": 0,
+          "summary": "human → process"
+        },
+        {
+          "stage": 1,
+          "ran": true,
+          "ms": 751,
+          "summary": "person 0.99, potted plant 0.94, bench 0.88, potted plant 0.87"
+        },
+        {
+          "stage": 2,
+          "ran": true,
+          "ms": 384,
+          "summary": "delivery driver carrying a cardboard package 0.76 → a visit is expected, verify"
+        },
+        {
+          "stage": 3,
+          "ran": true,
+          "ms": 4893,
+          "summary": "Person in navy scrubs with a shoulder bag walking away down the front walkway."
+        }
+      ],
+      "verdict": {
+        "visitorType": "care_worker",
+        "activity": "leaving",
+        "packagePresent": false,
+        "vehicle": null,
+        "people": 1,
+        "concern": "none",
+        "matchesExpected": true,
+        "scheduleId": "s_aide",
+        "custom": [],
+        "description": "Person in navy scrubs with a shoulder bag walking away down the front walkway.",
+        "confidence": 0.8
+      },
+      "ok": true,
+      "ms": 6028,
+      "costUsd": 0.0021
+    },
+    {
+      "file": "courier.jpg",
+      "realRing": false,
+      "subType": "package_delivery",
+      "expected": {
+        "visitorType": "delivery",
+        "package": true
+      },
+      "reachedStage": 3,
+      "stages": [
+        {
+          "stage": 0,
+          "ran": true,
+          "ms": 1,
+          "summary": "package_delivery → process"
+        },
+        {
+          "stage": 1,
+          "ran": true,
+          "ms": 479,
+          "summary": "person 0.99, potted plant 0.92, potted plant 0.87, potted plant 0.87"
+        },
+        {
+          "stage": 2,
+          "ran": true,
+          "ms": 364,
+          "summary": "delivery driver carrying a cardboard package 0.98 → a visit is expected, verify"
+        },
+        {
+          "stage": 3,
+          "ran": true,
+          "ms": 4281,
+          "summary": "Delivery person in brown uniform places a cardboard package on the doormat during daytime."
+        }
+      ],
+      "verdict": {
+        "visitorType": "delivery",
+        "activity": "delivering",
+        "packagePresent": true,
+        "vehicle": null,
+        "people": 1,
+        "concern": "none",
+        "matchesExpected": false,
+        "custom": [],
+        "description": "Delivery person in brown uniform places a cardboard package on the doormat during daytime.",
+        "confidence": 0.93
+      },
+      "ok": true,
+      "ms": 5125,
+      "costUsd": 0.0021
+    },
+    {
+      "file": "courier.jpg",
+      "realRing": false,
+      "subType": "motion",
+      "expected": {
+        "visitorType": "delivery",
+        "package": true
+      },
+      "reachedStage": 3,
+      "stages": [
+        {
+          "stage": 0,
+          "ran": true,
+          "ms": 0,
+          "summary": "motion → process"
+        },
+        {
+          "stage": 1,
+          "ran": true,
+          "ms": 513,
+          "summary": "person 0.99, potted plant 0.92, potted plant 0.87, potted plant 0.87"
+        },
+        {
+          "stage": 2,
+          "ran": true,
+          "ms": 413,
+          "summary": "delivery driver carrying a cardboard package 0.98 → a visit is expected, verify"
+        },
+        {
+          "stage": 3,
+          "ran": true,
+          "ms": 4226,
+          "summary": "Delivery worker in brown uniform places a cardboard package on the doormat."
+        }
+      ],
+      "verdict": {
+        "visitorType": "delivery",
+        "activity": "delivering",
+        "packagePresent": true,
+        "vehicle": null,
+        "people": 1,
+        "concern": "none",
+        "matchesExpected": false,
+        "custom": [],
+        "description": "Delivery worker in brown uniform places a cardboard package on the doormat.",
+        "confidence": 0.93
+      },
+      "ok": true,
+      "ms": 5153,
+      "costUsd": 0.0021
+    },
+    {
+      "file": "package.jpg",
+      "realRing": false,
+      "subType": "other_motion",
+      "expected": {
+        "package": true
+      },
+      "reachedStage": 3,
+      "stages": [
+        {
+          "stage": 0,
+          "ran": true,
+          "ms": 1,
+          "summary": "other_motion → process"
+        },
+        {
+          "stage": 1,
+          "ran": true,
+          "ms": 427,
+          "summary": "potted plant 0.92, potted plant 0.88, car 0.76, potted plant 0.73"
+        },
+        {
+          "stage": 2,
+          "ran": true,
+          "ms": 187,
+          "summary": "delivery van 0.58 → unsure, escalate"
+        },
+        {
+          "stage": 3,
+          "ran": true,
+          "ms": 4825,
+          "summary": "Empty porch with a cardboard package on the mat; no people visible."
+        }
+      ],
+      "verdict": {
+        "activity": "unknown",
+        "packagePresent": true,
+        "vehicle": null,
+        "people": 0,
+        "concern": "none",
+        "matchesExpected": false,
+        "custom": [],
+        "description": "Empty porch with a cardboard package on the mat; no people visible.",
+        "confidence": 0.9
+      },
+      "ok": true,
+      "ms": 5440,
+      "costUsd": 0.0021
+    },
+    {
+      "file": "meals.jpg",
+      "realRing": false,
+      "subType": "ding",
+      "expected": {
+        "activity": "waiting"
+      },
+      "reachedStage": 3,
+      "stages": [
+        {
+          "stage": 0,
+          "ran": true,
+          "ms": 0,
+          "summary": "doorbell pressed → always process"
+        },
+        {
+          "stage": 1,
+          "ran": true,
+          "ms": 539,
+          "summary": "person 0.97, person 0.91, suitcase 0.87, bench 0.81"
+        },
+        {
+          "stage": 2,
+          "ran": true,
+          "ms": 303,
+          "summary": "delivery driver carrying a cardboard package 0.88 → high stakes, verify"
+        },
+        {
+          "stage": 3,
+          "ran": true,
+          "ms": 6098,
+          "summary": "Older adult in green fleece holds a navy cooler bag on the porch; no expected visitor visible."
+        }
+      ],
+      "verdict": {
+        "visitorType": "resident",
+        "activity": "waiting",
+        "packagePresent": false,
+        "vehicle": null,
+        "people": 1,
+        "concern": "none",
+        "matchesExpected": false,
+        "custom": [],
+        "description": "Older adult in green fleece holds a navy cooler bag on the porch; no expected visitor visible.",
+        "confidence": 0.6
+      },
+      "ok": true,
+      "ms": 6940,
+      "costUsd": 0.0021
+    },
+    {
+      "file": "resident.jpg",
+      "realRing": false,
+      "subType": "human",
+      "expected": {
+        "visitorType": "resident",
+        "activity": "leaving"
+      },
+      "reachedStage": 3,
+      "stages": [
+        {
+          "stage": 0,
+          "ran": true,
+          "ms": 0,
+          "summary": "human → process"
+        },
+        {
+          "stage": 1,
+          "ran": true,
+          "ms": 570,
+          "summary": "person 1.00, potted plant 0.95, handbag 0.88, bench 0.77"
+        },
+        {
+          "stage": 2,
+          "ran": true,
+          "ms": 284,
+          "summary": "home care worker or nurse wearing scrubs or a uniform 0.56 → unsure, escalate"
+        },
+        {
+          "stage": 3,
+          "ran": true,
+          "ms": 4553,
+          "summary": "Older resident with cane and handbag walks away from the door toward the steps."
+        }
+      ],
+      "verdict": {
+        "visitorType": "resident",
+        "activity": "leaving",
+        "packagePresent": false,
+        "vehicle": null,
+        "people": 1,
+        "concern": "none",
+        "matchesExpected": false,
+        "custom": [],
+        "description": "Older resident with cane and handbag walks away from the door toward the steps.",
+        "confidence": 0.85
+      },
+      "ok": true,
+      "ms": 5407,
+      "costUsd": 0.0021
+    },
+    {
+      "file": "night.jpg",
+      "realRing": false,
+      "subType": "human",
+      "expected": {
+        "visitorType": "unknown"
+      },
+      "reachedStage": 3,
+      "stages": [
+        {
+          "stage": 0,
+          "ran": true,
+          "ms": 0,
+          "summary": "human → process"
+        },
+        {
+          "stage": 1,
+          "ran": true,
+          "ms": 417,
+          "summary": "person 0.99, potted plant 0.98, potted plant 0.69, cell phone 0.66"
+        },
+        {
+          "stage": 2,
+          "ran": true,
+          "ms": 170,
+          "summary": "older adult at their own front door 0.35 → high stakes, verify"
+        },
+        {
+          "stage": 3,
+          "ran": true,
+          "ms": 6494,
+          "summary": "Hooded person standing at bottom of front steps facing the door at night; no package or vehicle visible."
+        }
+      ],
+      "verdict": {
+        "visitorType": "unknown",
+        "activity": "arriving",
+        "packagePresent": false,
+        "vehicle": null,
+        "people": 1,
+        "concern": "low",
+        "matchesExpected": false,
+        "custom": [],
+        "description": "Hooded person standing at bottom of front steps facing the door at night; no package or vehicle visible.",
+        "confidence": 0.6
+      },
+      "ok": true,
+      "ms": 7081,
+      "costUsd": 0.0021
+    },
+    {
+      "file": "car.jpg",
+      "realRing": false,
+      "subType": "vehicle",
+      "expected": {
+        "vehicle": true
+      },
+      "reachedStage": 3,
+      "stages": [
+        {
+          "stage": 0,
+          "ran": true,
+          "ms": 0,
+          "summary": "vehicle → process"
+        },
+        {
+          "stage": 1,
+          "ran": true,
+          "ms": 360,
+          "summary": "car 1.00, car 0.99, car 0.98, car 0.90"
+        },
+        {
+          "stage": 2,
+          "ran": true,
+          "ms": 131,
+          "summary": "silver hatchback pulling in or parked 0.44 → unsure, escalate"
+        },
+        {
+          "stage": 3,
+          "ran": true,
+          "ms": 5647,
+          "summary": "Silver hatchback parked in driveway matching the expected home aide's car; no person visible."
+        }
+      ],
+      "verdict": {
+        "visitorType": "care_worker",
+        "activity": "unknown",
+        "packagePresent": false,
+        "vehicle": "silver hatchback parked in driveway",
+        "people": 0,
+        "concern": "none",
+        "matchesExpected": true,
+        "scheduleId": "s_aide",
+        "custom": [],
+        "description": "Silver hatchback parked in driveway matching the expected home aide's car; no person visible.",
+        "confidence": 0.6
+      },
+      "ok": true,
+      "ms": 6140,
+      "costUsd": 0.0021
+    },
+    {
+      "file": "aide_arrive.jpg",
+      "realRing": false,
+      "subType": "animal",
+      "expected": {
+        "stop": true
+      },
+      "reachedStage": 0,
+      "stages": [
+        {
+          "stage": 0,
+          "ran": true,
+          "ms": 0,
+          "summary": "animal → skipped (not a care event)"
+        },
+        {
+          "stage": 1,
+          "ran": false,
+          "ms": 0,
+          "summary": "not needed"
+        },
+        {
+          "stage": 2,
+          "ran": false,
+          "ms": 0,
+          "summary": "not needed"
+        },
+        {
+          "stage": 3,
+          "ran": false,
+          "ms": 0,
+          "summary": "not needed"
+        }
+      ],
+      "verdict": null,
+      "ok": true,
+      "ms": 0,
+      "costUsd": 0
+    },
     {
       "file": "playground_package_a.jpg",
       "realRing": true,
@@ -41,13 +576,13 @@
         {
           "stage": 1,
           "ran": true,
-          "ms": 977,
+          "ms": 533,
           "summary": "nothing detected, no Ring label → check the scene"
         },
         {
           "stage": 2,
           "ran": true,
-          "ms": 1136,
+          "ms": 223,
           "summary": "cardboard package left on the doorstep 0.77 → resolved, no vision model needed"
         },
         {
@@ -66,7 +601,7 @@
         "confidence": 0.7651230692863464
       },
       "ok": true,
-      "ms": 2115,
+      "ms": 757,
       "costUsd": 0
     },
     {
@@ -87,20 +622,20 @@
         {
           "stage": 1,
           "ran": true,
-          "ms": 370,
+          "ms": 274,
           "summary": "potted plant 0.79"
         },
         {
           "stage": 2,
           "ran": true,
-          "ms": 186,
+          "ms": 125,
           "summary": "cardboard package left on the doorstep 0.54 → unsure, escalate"
         },
         {
           "stage": 3,
           "ran": true,
-          "ms": 3580,
-          "summary": "Snowy front step with a cardboard package and a potted plant; no people visible."
+          "ms": 3098,
+          "summary": "Snowy porch with a cardboard package on the steps; no people visible."
         }
       ],
       "verdict": {
@@ -110,12 +645,13 @@
         "people": 0,
         "concern": "none",
         "matchesExpected": false,
+        "scheduleId": "s_aide",
         "custom": [],
-        "description": "Snowy front step with a cardboard package and a potted plant; no people visible.",
+        "description": "Snowy porch with a cardboard package on the steps; no people visible.",
         "confidence": 0.9
       },
       "ok": true,
-      "ms": 4136,
+      "ms": 3497,
       "costUsd": 0.0021
     },
     {
@@ -136,13 +672,13 @@
         {
           "stage": 1,
           "ran": true,
-          "ms": 261,
+          "ms": 207,
           "summary": "car 0.97, car 0.95, car 0.95, car 0.94"
         },
         {
           "stage": 2,
           "ran": true,
-          "ms": 116,
+          "ms": 104,
           "summary": "silver hatchback pulling in or parked 0.90 → resolved, no vision model needed"
         },
         {
@@ -162,7 +698,7 @@
         "confidence": 0.9013898372650146
       },
       "ok": true,
-      "ms": 378,
+      "ms": 311,
       "costUsd": 0
     },
     {
@@ -183,13 +719,13 @@
         {
           "stage": 1,
           "ran": true,
-          "ms": 266,
+          "ms": 182,
           "summary": "car 0.95, car 0.93, car 0.92, car 0.82"
         },
         {
           "stage": 2,
           "ran": true,
-          "ms": 112,
+          "ms": 58,
           "summary": "silver hatchback pulling in or parked 0.66 → resolved, no vision model needed"
         },
         {
@@ -209,7 +745,7 @@
         "confidence": 0.6623056530952454
       },
       "ok": true,
-      "ms": 378,
+      "ms": 240,
       "costUsd": 0
     },
     {
@@ -230,14 +766,14 @@
         {
           "stage": 1,
           "ran": true,
-          "ms": 291,
+          "ms": 201,
           "summary": "nothing detected, no Ring label → check the scene"
         },
         {
           "stage": 2,
           "ran": true,
-          "ms": 140,
-          "summary": "birds or an animal 0.91 → not a care event, stop"
+          "ms": 88,
+          "summary": "birds or an animal 0.91 → nothing for the family, stop"
         },
         {
           "stage": 3,
@@ -248,7 +784,7 @@
       ],
       "verdict": null,
       "ok": true,
-      "ms": 433,
+      "ms": 289,
       "costUsd": 0
     },
     {
@@ -269,7 +805,7 @@
         {
           "stage": 1,
           "ran": true,
-          "ms": 375,
+          "ms": 223,
           "summary": "only bird → stop"
         },
         {
@@ -287,7 +823,7 @@
       ],
       "verdict": null,
       "ok": true,
-      "ms": 375,
+      "ms": 223,
       "costUsd": 0
     }
   ]

@@ -15,6 +15,7 @@ export interface RingEventRecord {
   // 'playground_live': a Ring Developer Playground simulated event. Ring records it as an `on_demand` live view
   // with no sub_type; Homebeat analyses it as unlabelled doorstep activity.
   origin?: 'playground_live'
+  sample?: boolean // seeded sample week (raw motion history behind the sample moments)
 }
 
 export const moments = collection<Moment>('moments', { at: (m) => m.at, kind: (m) => m.kind })

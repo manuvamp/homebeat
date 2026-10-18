@@ -41,6 +41,20 @@ week, and then the things they actually worry about go unnoticed:
 | **Plain-English rules** | "Tell me if a package sits outside more than 30 minutes", "The physio comes Tuesdays and Thursdays around 3 in a white van". A model translates the sentence into one of six structured rule types; the family checks the card before saving; rules run deterministically. |
 | **Daily digest and weekly care report** | One calm paragraph a day instead of forty alerts, and a printable weekly report (visits on time / late / missed, hours of care) to share with siblings or the care agency. |
 
+## Screens
+
+Captured during a live run against the Ring Developer Playground (real Ring events, frames and stream; the
+family is a sample persona).
+
+| | |
+|---|---|
+| ![Today: the aide is with Asha, a package is still outside, 4 Ring alerts became 3 moments](docs/screenshots/today.jpg) | ![How Homebeat looked at a delivery: four stages, $0.0021](docs/screenshots/moment-delivery-trace.jpg) |
+| **Today.** Ring alerts in, a few moments out; a heads-up when a package sits outside. | **Every moment explains itself.** The Playground's package clip went through all four stages for $0.0021. |
+| ![Maria arrived: the aide's car matched on-device, no vision model needed](docs/screenshots/moment-arrival-trace.jpg) | ![Live view of the Ring Playground Device over WHEP, with the countdown above the picture](docs/screenshots/live-view.jpg) |
+| **Arrival from the aide's car,** matched on the free on-device step. | **Live view** over Ring's WHEP API, stopping at the device's limit; Ring's watermark stays uncovered. |
+| ![A plain-English rule turned into a structured card](docs/screenshots/plain-english-rule.jpg) | ![The week of visits: on time, late, missed](docs/screenshots/visits-week.jpg) |
+| **Plain-English rules** the family reads before saving. | **Visits** checked against the schedule, with a one-tap check-in link for the aide. |
+
 ## Built on Ring, the way Ring's own guides describe
 
 - **Ring Partner API end to end:** device discovery with `include`, status/capabilities/configurations, Event
@@ -52,8 +66,9 @@ week, and then the things they actually worry about go unnoticed:
   object gate → on-device attire/vehicle match → vision model) so cost follows *events that matter*, not raw
   motion. Every moment shows its own trace (stage, milliseconds, cost), and the app shows the month's totals.
   On real frames from the Ring Developer Playground (`npx tsx scripts/eval.ts`), the funnel was right on 6 of
-  6 with one vision-model call, the same accuracy as sending every frame to the model at one sixth of the cost
-  ([results](server/eval/results.json)).
+  6 with one vision-model call, the same accuracy as sending every frame to the model at one sixth of the cost.
+  Across all 17 labelled frames (those plus the offline simulator's scenes) it was right on 17 with 10 calls;
+  sending every frame to the same model got 12 right with 17 calls ([results](server/eval/results.json)).
 - **Tested against the live Ring API**, not only a mock: the Playground's Package, Vehicle and Motion clips run
   through Homebeat as real events, frames, clips and a WHEP stream. What that turned up (16 entries, with
   workarounds) is in [docs/FRICTION_LOG.md](docs/FRICTION_LOG.md).

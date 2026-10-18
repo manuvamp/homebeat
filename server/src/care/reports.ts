@@ -108,7 +108,10 @@ export function funnelStats(days: number): FunnelStats {
   const list = analyses.all('WHERE at >= ?', since)
   const ran = (n: number) => list.filter((a) => a.stages.some((s) => s.stage === n && s.ran)).length
   const raw = events.count('WHERE at >= ? AND kind != ?', since, 'on_demand')
-  const ms = moments.all('WHERE at >= ?', since).filter((m) => !m.sample)
+  // The seeded sample week counts too (events, analyses and moments alike), so a fresh install shows a
+  // believable month; `sampleEvents` lets the page say so.
+  const ms = moments.all('WHERE at >= ?', since)
+  const sampleNotified = ms.filter((m) => m.sample && (m.severity === 'heads_up' || m.severity === 'urgent')).length
   return {
     windowDays: days,
     events: raw,
@@ -116,7 +119,7 @@ export function funnelStats(days: number): FunnelStats {
     stage2: ran(2),
     stage3: ran(3),
     moments: ms.length,
-    notified: getSetting('notify_stats', { notified: 0 }).notified,
+    notified: getSetting('notify_stats', { notified: 0 }).notified + sampleNotified,
     costUsd: list.reduce((s, a) => s + a.totalCostUsd, 0),
     naiveCostUsd: raw * config.ai.visionCallUsd,
     stageMs: [0, 1, 2, 3].map((n) => {
@@ -124,6 +127,7 @@ export function funnelStats(days: number): FunnelStats {
       return ran.length ? Math.round(ran.reduce((sum, s) => sum + s.ms, 0) / ran.length) : 0
     }) as FunnelStats['stageMs'],
     visionCallUsd: config.ai.visionCallUsd,
+    sampleEvents: events.count('WHERE at >= ? AND json_extract(json, \'$.sample\') = 1', since),
   }
 }
 

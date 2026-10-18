@@ -67,7 +67,7 @@ async function frameFor(event: RingEventRecord, device: Device): Promise<{ jpeg:
 const safe = (id: string) => id.replace(/[^a-zA-Z0-9_-]/g, '').slice(-60)
 
 // "Ring media 416: {json}" → "416 MEDIA_NOT_FOUND: No media found in time range ..."
-function ringErrorText(err: Error): string {
+export function ringErrorText(err: Error): string {
   const m = /^Ring media (\d+): (\{.*)$/s.exec(err.message)
   if (!m) return err.message.slice(0, 160)
   try {
@@ -81,7 +81,7 @@ function ringErrorText(err: Error): string {
 // Which moment of the event to look at. A live trigger: a beat after it starts, when the subject is usually in
 // frame. A finished event from history (start and end known): about a third of the way in, past the first
 // seconds where a car or person is often still entering the scene.
-function frameTime(event: RingEventRecord): number {
+export function frameTime(event: RingEventRecord): number {
   const duration = event.endAt ? event.endAt - event.at : 0
   if (duration < 6_000) return event.at + 1500
   // Whole milliseconds: Ring rejects a fractional timestamp as an invalid request body (403).
@@ -240,7 +240,7 @@ export async function processEvent(event: RingEventRecord) {
   // Everything else (passers-by, the street, the wind) stays a counted raw event, never a notification.
 }
 
-function matchVisit(verdict: Verdict, open: OpenVisit[], event: RingEventRecord): OpenVisit | undefined {
+export function matchVisit(verdict: Verdict, open: OpenVisit[], event: RingEventRecord): OpenVisit | undefined {
   if (!open.length) return undefined
   // An arrival needs someone at the door, their car, or a doorbell press: a parcel on the step alone isn't a visit,
   // even if the vision model offers an expected_schedule_id for it.

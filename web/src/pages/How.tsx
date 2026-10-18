@@ -179,6 +179,9 @@ function FunnelCard({ f }: { f: FunnelStats }) {
           ? 'No Ring alerts yet. As the doorbell sees things, they’ll flow through these steps.'
           : `${plural(f.events, 'alert')} became ${plural(f.moments, 'moment')}, and ${f.notified === 0 ? 'none' : f.notified < f.moments ? `only ${f.notified}` : f.notified} needed your phone.`}
       </p>
+      {f.sampleEvents > 0 && (
+        <p className="mt-1 text-[13px] text-ink-mute">Includes the sample week Homebeat starts with ({plural(f.sampleEvents, 'sample alert')}).</p>
+      )}
       <ol className="mt-6 space-y-2.5">
         {ROWS.map((r, i) => {
           const value = f[r.key] as number

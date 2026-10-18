@@ -3,10 +3,10 @@
 // is labelled "Sample" in the UI; live Ring events never are.
 import { copyFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
-import type { Moment, Rule, Schedule, Visit } from '../../../shared/types.ts'
+import type { Analysis, Moment, Rule, Schedule, StageResult, Visit } from '../../../shared/types.ts'
 import { config, ROOT } from '../config.ts'
 import { db, getSetting, setSetting } from '../db.ts'
-import { household, moments, rules, schedules, visits } from '../store.ts'
+import { analyses, events, household, moments, rules, schedules, visits } from '../store.ts'
 import { addDays, atLocal, clock, localDate, weekdayOfDate } from '../time.ts'
 
 export const DEFAULT_SCHEDULES: Schedule[] = [
@@ -179,10 +179,61 @@ export function seedSampleWeek() {
       sampleMoment({ kind: 'resident_out', severity: 'calm', at: out, title: `${parent} went out`, body: `${parent} left with her handbag and walking cane. Getting out is a good sign.`, snapshotUrl: sampleImage('resident'), deviceName: 'Front Door', confidence: 0.84, ack: null })
       sampleMoment({ kind: 'resident_back', severity: 'calm', at: out + (55 + back * 4) * 60_000, title: `${parent} is back home`, body: `${parent} came back after about ${55 + back * 4} min.`, deviceName: 'Front Door', confidence: 0.8, ack: null })
     }
+    sampleRawMotion(date, 30 + j * 3)
     if (back === 4) {
       const at = atLocal(date, '22:41')
       sampleMoment({ kind: 'after_dark', severity: 'urgent', at, title: `Someone at the door at ${clock(at)}`, body: 'An adult in a dark hooded jacket stood at the door for about a minute, then left. No visit was expected. Priya called Asha, who had not opened the door.', snapshotUrl: sampleImage('night'), deviceName: 'Front Door', confidence: 0.9, ack: { by: 'Priya', at: at + 3 * 60_000 }, actions: ['watch_live', 'call_parent'] })
     }
+  }
+}
+
+// The everyday motion behind a sample day: about forty Ring events, almost all stopped by the free stages,
+// so "How Homebeat watches" shows the funnel the way a real month looks. Deterministic, marked sample.
+const STAGE_NAMES = ['Ring sub_type filter', 'Object gate (on-device)', 'Attire & vehicle match (on-device)', 'Vision model'] as const
+const STOPS: { reach: 0 | 1 | 2 | 3; subType: string; summary: string }[] = [
+  { reach: 0, subType: 'animal', summary: 'animal → skipped (not a care event)' },
+  { reach: 0, subType: 'other_motion', summary: 'other_motion burst → merged with event 12 s earlier' },
+  { reach: 0, subType: 'vehicle', summary: 'vehicle, no visit expected → passing traffic' },
+  { reach: 1, subType: 'other_motion', summary: 'nothing detected → stop' },
+  { reach: 1, subType: 'other_motion', summary: 'potted plant 0.62 → stop' },
+  { reach: 0, subType: 'animal', summary: 'animal → skipped (not a care event)' },
+  { reach: 1, subType: 'human', summary: 'only cat → stop' },
+  { reach: 0, subType: 'other_motion', summary: 'other_motion burst → merged with event 19 s earlier' },
+  { reach: 2, subType: 'human', summary: 'older adult at their own front door 0.81 → resolved, no vision model needed' },
+  { reach: 1, subType: 'other_motion', summary: 'nothing detected → stop' },
+  { reach: 2, subType: 'human', summary: 'person walking away from the house 0.77 → resolved, no vision model needed' },
+  { reach: 0, subType: 'vehicle', summary: 'vehicle, no visit expected → passing traffic' },
+]
+function sampleRawMotion(date: string, count: number) {
+  const dayStart = atLocal(date, '07:00')
+  const span = atLocal(date, '21:30') - dayStart
+  for (let i = 0; i < count; i++) {
+    const at = dayStart + Math.round((span * (i + 0.5)) / count) + ((i * 7919) % 300) * 1000
+    const stop = i % 17 === 9 ? { reach: 3 as const, subType: 'human', summary: 'A courier at the door holding a parcel.' } : STOPS[(i * 5 + date.length) % STOPS.length]
+    const id = `ev_sample_${date}_${i}`
+    events.put({ id, deviceId: 'sample-front-door', at, kind: 'motion', subType: stop.subType, source: 'sim', sample: true })
+    const ms = [0, 520 + ((i * 37) % 180), 340 + ((i * 29) % 120), 2900 + ((i * 53) % 700)]
+    const stages: StageResult[] = ([0, 1, 2, 3] as const).map((n) => ({
+      stage: n,
+      name: STAGE_NAMES[n],
+      ran: n <= stop.reach,
+      passed: n < stop.reach || (n === 3 && stop.reach === 3),
+      ms: n <= stop.reach ? ms[n] : 0,
+      costUsd: n === 3 && stop.reach === 3 ? config.ai.visionCallUsd : 0,
+      summary: n === stop.reach ? stop.summary : n < stop.reach ? 'passed' : 'not needed',
+    }))
+    const a: Analysis = {
+      id: `an_sample_${date}_${i}`,
+      sample: true,
+      eventId: id,
+      deviceId: 'sample-front-door',
+      startedAt: at,
+      stages,
+      verdict: { description: stop.reach >= 2 ? stop.summary : 'Filtered', confidence: stop.reach >= 2 ? 0.8 : 1 },
+      totalMs: stages.reduce((sum, s) => sum + s.ms, 0),
+      totalCostUsd: stages.reduce((sum, s) => sum + s.costUsd, 0),
+    }
+    analyses.put(a)
   }
 }
 
