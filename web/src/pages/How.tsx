@@ -110,28 +110,31 @@ export default function HowPage() {
             <div>
               <dt className="font-semibold text-ink">Stage 0 · Ring sub_type filter</dt>
               <dd>
-                Every Ring webhook carries a <code className="rounded bg-paper-deep px-1.5 py-0.5 text-[13px]">sub_type</code> such as{' '}
-                <code className="rounded bg-paper-deep px-1.5 py-0.5 text-[13px]">human</code>, <code className="rounded bg-paper-deep px-1.5 py-0.5 text-[13px]">motion</code>,{' '}
-                <code className="rounded bg-paper-deep px-1.5 py-0.5 text-[13px]">ding</code>, <code className="rounded bg-paper-deep px-1.5 py-0.5 text-[13px]">package</code> or{' '}
-                <code className="rounded bg-paper-deep px-1.5 py-0.5 text-[13px]">vehicle</code>. Generic motion outside a schedule window or quiet hours stops here.
+                Every Ring motion event carries a <code className="rounded bg-paper-deep px-1.5 py-0.5 text-[13px]">sub_type</code> such as{' '}
+                <code className="rounded bg-paper-deep px-1.5 py-0.5 text-[13px]">human</code>, <code className="rounded bg-paper-deep px-1.5 py-0.5 text-[13px]">vehicle</code>,{' '}
+                <code className="rounded bg-paper-deep px-1.5 py-0.5 text-[13px]">package_delivery</code> or{' '}
+                <code className="rounded bg-paper-deep px-1.5 py-0.5 text-[13px]">animal</code>. Animals stop here, bursts on the same camera are merged, and a passing car
+                is ignored unless a visit with a known car is expected. A doorbell press always goes on. Events with no label (like the Ring Developer Playground’s) go on
+                to be looked at.
               </dd>
             </div>
             <div>
               <dt className="font-semibold text-ink">Stage 1 · Object gate</dt>
-              <dd>A small local detector scores person / package / car on the Ring snapshot. Low scores end the event with no further cost.</dd>
+              <dd>A small on-device detector looks for people and vehicles in the Ring snapshot. An animal on its own, or an empty frame Ring labelled as motion, ends the event with no further cost.</dd>
             </div>
             <div>
-              <dt className="font-semibold text-ink">Stage 2 · Known-vehicle match</dt>
+              <dt className="font-semibold text-ink">Stage 2 · Quick match</dt>
               <dd>
-                Each expected visit can carry a vehicle hint (e.g. “silver hatchback”). If the car in the Driveway snapshot matches an active schedule window,
-                the visit is confirmed without calling the vision model.
+                Still on-device, the frame is compared with plain descriptions: a care uniform with a bag, a courier with a parcel, a package left on the step, birds at
+                a feeder. Each expected visit can carry a vehicle hint (e.g. “silver hatchback”), so the aide’s car pulling in confirms the visit without calling the
+                vision model.
               </dd>
             </div>
             <div>
               <dt className="font-semibold text-ink">Stage 3 · Vision model</dt>
               <dd>
                 Only ambiguous events reach a hosted vision-language model, which returns a short description, visitor type, activity and confidence. Each call
-                costs about $0.006; the per-moment trace on every detail page shows the exact time and cost of each stage.
+                costs about $0.002; the per-moment trace on every detail page shows the exact time and cost of each stage.
               </dd>
             </div>
           </dl>
@@ -278,7 +281,7 @@ function EarlyCostCard({ f }: { f: FunnelStats }) {
       </p>
       <dl className="mt-5 divide-y divide-line rounded-2xl bg-paper">
         {[
-          ['Steps 1–3 (Ring filter, object check, known car)', 'free'],
+          ['Steps 1–3 (Ring filter, object check, quick match)', 'free'],
           ['Step 4, one look by the vision model', call > 0 ? formatCost(call) : 'a fraction of a cent'],
           ['Sending every alert to the vision model', call > 0 ? `${formatCost(call)} × every alert` : 'every alert costs'],
         ].map(([k, v]) => (

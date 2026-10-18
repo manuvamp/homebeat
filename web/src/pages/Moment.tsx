@@ -224,10 +224,13 @@ function MomentView({ m }: { m: Moment }) {
 
         <aside className="space-y-4 lg:sticky lg:top-24 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start" aria-label="Actions">
           <Card className="space-y-2.5 p-4">
-            {actions.has('watch_live') && m.deviceId && (
+            {actions.has('watch_live') && m.deviceId && device?.online !== false && (
               <ButtonLink to={`/live/${m.deviceId}`} variant={m.severity === 'urgent' ? 'urgent' : 'primary'} icon={Video} className="w-full">
                 Watch live{device?.maxLiveSeconds ? ` · ${device.maxLiveSeconds} s` : ''}
               </ButtonLink>
+            )}
+            {actions.has('watch_live') && device?.online === false && (
+              <p className="px-1 py-1 text-[14px] text-ink-mute">Live view isn’t available while {device.name} is offline.</p>
             )}
             {phone && (
               <a

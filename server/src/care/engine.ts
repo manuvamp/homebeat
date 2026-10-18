@@ -146,7 +146,7 @@ export async function processEvent(event: RingEventRecord) {
       {
         kind: vehicleMatch ? 'vehicle_match' : event.kind === 'ding' ? 'ring_ding' : 'ring_motion',
         at: event.at,
-        detail: vehicleMatch ? `${visit.schedule.vehicleHint} seen on ${device.name}` : `${verdict.description.replace(/\.$/, '')} (${device.name})`,
+        detail: vehicleMatch ? `${capitalize(visit.schedule.vehicleHint ?? 'car')} seen on ${device.name}` : `${verdict.description.replace(/\.$/, '')} (${device.name})`,
         snapshotUrl: analysis.snapshotUrl,
       },
       analysis.snapshotUrl,
@@ -376,3 +376,5 @@ export function checkQuiet(now = Date.now()) {
 }
 
 export const demoTiming = () => ({ fast: fastDemo(), pollMs: config.ring.pollMs })
+
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)

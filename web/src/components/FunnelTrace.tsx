@@ -5,7 +5,7 @@ import { cx } from './ui'
 export const STAGE_INFO: Record<StageId, { short: string; plain: string; icon: LucideIcon }> = {
   0: { short: 'Ring filter', plain: 'Ring already labels what it saw. Homebeat ignores the kinds of motion that never matter.', icon: Filter },
   1: { short: 'Object check', plain: 'A small on-device model checks the snapshot for a person, a package or a car.', icon: ScanSearch },
-  2: { short: 'Known car', plain: 'If a car is in view, Homebeat compares it to the cars of expected visitors, like the home aide’s.', icon: Car },
+  2: { short: 'Quick match', plain: 'Still on-device: the frame is compared with plain descriptions, like a care uniform, a package on the step, the home aide’s car or birds at a feeder.', icon: Car },
   3: { short: 'Vision model', plain: 'Only when it’s still unclear does a vision model describe the scene in plain words.', icon: Brain },
 }
 

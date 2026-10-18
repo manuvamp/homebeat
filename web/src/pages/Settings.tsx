@@ -372,7 +372,7 @@ const MODE_LABEL: Record<Household['ringMode'], { label: string; cls: string; bo
   playground: {
     label: 'Ring Developer Playground',
     cls: 'bg-note-bg text-note',
-    body: 'Homebeat is connected with a Ring Developer Playground token. Tokens last a few hours, so paste a fresh one when it runs out.',
+    body: 'Homebeat is connected to the Ring Developer Playground with a token. Playground tokens last 30 minutes, so paste a fresh one when it runs out.',
   },
   linked: { label: 'Linked', cls: 'bg-calm-bg text-calm', body: 'The Ring account is linked. Homebeat stays connected on its own.' },
   offline_sim: { label: 'Offline simulator', cls: 'bg-paper-deep text-ink-soft', body: 'Homebeat is replaying recorded doorbell activity, not live Ring data.' },
@@ -405,7 +405,7 @@ function RingSection({ household, onSaved }: { household: Household; onSaved: (h
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null)
   const m = MODE_LABEL[household.ringMode]
   const remaining = household.tokenExpiresAt ? household.tokenExpiresAt - now() : null
-  const lowTime = remaining !== null && remaining < 60 * 60_000
+  const lowTime = remaining !== null && remaining < 5 * 60_000
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -464,6 +464,16 @@ function RingSection({ household, onSaved }: { household: Household; onSaved: (h
                 {formatRemaining(remaining)}
               </p>
             </div>
+          </div>
+        )}
+
+        {household.ringMode === 'playground' && (
+          <div className="mt-5 rounded-2xl bg-paper px-4 py-3.5">
+            <p className="text-[15px] font-semibold">Try it from the Playground</p>
+            <p className="mt-1 max-w-2xl text-[15px] text-ink-soft">
+              In the Ring Developer Playground, under “Simulate live view event”, choose Package, Vehicle or Motion. When the clip ends (20 to 40 seconds), Homebeat reads the
+              event from Ring’s Event History, looks at frames through the image API and shows what it decided on Today. Each moment shows how Homebeat looked at it, step by step.
+            </p>
           </div>
         )}
 
