@@ -22,10 +22,10 @@ await app.register(apiRoutes)
 
 const dist = join(ROOT, 'web', 'dist')
 if (existsSync(dist)) {
-  await app.register(fastifyStatic, { root: dist, wildcard: false })
+  await app.register(fastifyStatic, { root: dist, wildcard: true })
   // Single-page app: any non-API route serves index.html.
   app.setNotFoundHandler((req, reply) => {
-    if (req.url.startsWith('/api/') || req.url.startsWith('/ring/')) return reply.code(404).send({ error: 'Not found' })
+    if (/^\/(api|ring|assets)\//.test(req.url)) return reply.code(404).send({ error: 'Not found' })
     return reply.sendFile('index.html')
   })
 }
