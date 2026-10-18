@@ -84,7 +84,7 @@ guess, **Low** papercut.
   `recvonly` and bidirectional media isn't supported.
 - **Severity:** Low.
 - **Workaround:** `recvonly` for both tracks in Homebeat.
-- **Suggestion:** fix the sample (Homebeat's Open Source contribution, see README).
+- **Suggestion:** fix the sample. Homebeat's patch is in `docs/contrib` (see README, Open source).
 
 ### 9. Playground tokens last 30 minutes
 - **Task:** leave Homebeat running against Playground devices during a demo.

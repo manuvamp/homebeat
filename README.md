@@ -152,9 +152,18 @@ npm test               # webhook signatures, nonce encoding, device normalizatio
 npm run typecheck
 ```
 
+## Open source
+
+- **Homebeat** itself, MIT.
+- **A fix for Ring's official sample app** ([AmazonAppDev/ring-api-helloworld](https://github.com/AmazonAppDev/ring-api-helloworld)),
+  found while building Homebeat's live view: the sample offered its audio track as `sendrecv` although Ring's
+  WHEP endpoint is receive-only. The patch makes both tracks `recvonly`:
+  [docs/contrib](docs/contrib/0001-Live-view-offer-audio-as-recvonly-for-Ring-s-WHEP-en.patch).
+
 ## What was built during the hackathon
 
-Everything in this repository was written between October 19 and October 23, 2026.
+Everything in this repository was written during the hackathon; the first commit is from October 19, 2026
+(IST), and the git history shows each step.
 
 ## License
 

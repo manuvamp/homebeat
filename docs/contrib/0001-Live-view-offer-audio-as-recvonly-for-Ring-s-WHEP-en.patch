@@ -1,0 +1,37 @@
+From a0c529c0f55ab2be280e3d83ac65f868691137ea Mon Sep 17 00:00:00 2001
+From: manu <manuparasuram01@gmail.com>
+Date: Mon, 19 Oct 2026 03:59:44 +0530
+Subject: [PATCH] Live view: offer audio as recvonly for Ring's WHEP endpoint
+
+Ring's WHEP endpoint is receive-only and the docs say every track in the offer must be recvonly; the sample
+offered audio as sendrecv. Also drops the legacy offerToReceive* options, which the transceivers replace.
+---
+ app/hooks/useWebRTCStream.ts | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/app/hooks/useWebRTCStream.ts b/app/hooks/useWebRTCStream.ts
+index 1694cb4..4529e4a 100644
+--- a/app/hooks/useWebRTCStream.ts
++++ b/app/hooks/useWebRTCStream.ts
+@@ -35,7 +35,8 @@ export function useWebRTCStream({ videoRef, deviceId }: UseWebRTCStreamOptions):
+       })
+       pcRef.current = pc
+ 
+-      pc.addTransceiver('audio', { direction: 'sendrecv' })
++      // Ring's WHEP endpoint is receive-only: every track in the offer must be recvonly.
++      pc.addTransceiver('audio', { direction: 'recvonly' })
+       pc.addTransceiver('video', { direction: 'recvonly' })
+ 
+       pc.ontrack = (e) => {
+@@ -45,7 +46,7 @@ export function useWebRTCStream({ videoRef, deviceId }: UseWebRTCStreamOptions):
+         }
+       }
+ 
+-      const offer = await pc.createOffer({ offerToReceiveVideo: true, offerToReceiveAudio: true })
++      const offer = await pc.createOffer()
+       await pc.setLocalDescription(offer)
+ 
+       // Wait for ICE gathering
+-- 
+2.54.0.windows.1
+
