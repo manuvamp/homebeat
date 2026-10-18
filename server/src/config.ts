@@ -41,8 +41,8 @@ export const config = {
   },
 
   ai: {
-    provider: env('AI_PROVIDER', 'openai') as AiProvider,
-    baseUrl: env('AI_BASE_URL', 'http://127.0.0.1:8317/v1'),
+    provider: env('AI_PROVIDER', 'none') as AiProvider,
+    baseUrl: env('AI_BASE_URL', 'https://api.openai.com/v1'),
     apiKey: env('AI_API_KEY'),
     visionModel: env('AI_VISION_MODEL', 'claude-haiku-5-5'),
     textModel: env('AI_TEXT_MODEL', 'claude-haiku-5-5'),
