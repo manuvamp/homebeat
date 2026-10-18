@@ -195,6 +195,8 @@ export interface FunnelStats {
   notified: number // pushed to a phone
   costUsd: number
   naiveCostUsd: number // what sending every event to the vision model would have cost
+  stageMs: [number, number, number, number] // average milliseconds per stage, over events where it ran
+  visionCallUsd: number // price used for one vision-model call
 }
 
 // ---- Household / home screen ----
@@ -205,6 +207,7 @@ export interface Member {
   relation: string // "Daughter"
   role: 'primary' | 'family' | 'viewer'
   escalationOrder: number
+  phone?: string
 }
 
 export interface Household {
@@ -214,6 +217,10 @@ export interface Household {
   timezone: string // "America/Los_Angeles"
   members: Member[]
   quietHours: { start: string; end: string }
+  parentPhone?: string // tel: target for "Call Asha"
+  escalateAfterMin: number // urgent moments go to the next family member after this many minutes
+  consent?: { by: string; at: number; note: string } // the parent's agreement to Homebeat watching the door
+  plan?: { name: string; trialEndsAt?: number; trialDays?: number }
   ringMode: 'playground' | 'linked' | 'offline_sim'
   ringAccountId?: string
   tokenExpiresAt?: number

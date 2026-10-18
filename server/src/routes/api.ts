@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { createReadStream, existsSync } from 'node:fs'
+import { createReadStream, existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { FastifyInstance } from 'fastify'
 import type { Household, LiveSessionResponse, Moment, Schedule, Severity, TodaySummary } from '../../../shared/types.ts'
@@ -96,6 +96,24 @@ export async function apiRoutes(app: FastifyInstance) {
   app.post('/api/moments/:id/chime', async () => {
     const ok = await playChime('ring-appstore-event-1')
     return ok ? { ok, slot: 'ring-appstore-event-1' } : { ok, error: 'No chime with a Homebeat audio slot is available' }
+  })
+
+  // The Ring recording behind a moment (Media Clips API), fetched on demand and cached as an MP4.
+  app.get('/api/moments/:id/clip', async (req, reply) => {
+    const m = moments.get((req.params as { id: string }).id)
+    const event = m?.eventIds[0] ? events.get(m.eventIds[0]) : undefined
+    if (!m || !event) return reply.code(404).send({ error: 'No recording for this moment' })
+    const file = join(config.dataDir, 'media', `clip_${m.id}.mp4`)
+    if (!existsSync(file)) {
+      try {
+        const clip = await api().clip(event.deviceId, event.at - 3_000, 15_000)
+        writeFileSync(file, clip.bytes)
+      } catch (err) {
+        return fail(reply, err)
+      }
+    }
+    reply.header('Cache-Control', 'private, max-age=86400')
+    return reply.type('video/mp4').send(createReadStream(file))
   })
 
   app.get('/api/visits', async (req) => {
@@ -208,6 +226,8 @@ export async function apiRoutes(app: FastifyInstance) {
     if (body.parentName) allowed.parentName = body.parentName
     if (body.homeName) allowed.homeName = body.homeName
     if (body.timezone) allowed.timezone = body.timezone
+    if (body.parentPhone !== undefined) allowed.parentPhone = body.parentPhone
+    if (typeof body.escalateAfterMin === 'number' && body.escalateAfterMin >= 1) allowed.escalateAfterMin = body.escalateAfterMin
     return household.patch(allowed)
   })
 
@@ -237,6 +257,12 @@ export async function apiRoutes(app: FastifyInstance) {
   })
 
   app.post('/api/checkin', async (req) => checkIn(String((req.body as { code?: string })?.code ?? '')))
+  // Lets the aide's check-in page greet them by first name before they tap (nothing else is exposed).
+  app.get('/api/checkin/:code', async (req, reply) => {
+    const code = (req.params as { code: string }).code.toLowerCase()
+    const s = schedules.all().find((x) => x.checkinCode?.toLowerCase() === code)
+    return s ? { who: s.who.split(/[ (]/)[0], parentName: household.get().parentName } : reply.code(404).send({ error: 'Unknown link' })
+  })
 
   app.get('/api/media/:file', (req, reply) => {
     const file = (req.params as { file: string }).file

@@ -61,13 +61,12 @@ export async function pollHistory() {
     const baseline = getSetting<Record<string, number>>('history_baseline', {})
     for (const device of cameras()) {
       const list = await api().getHistory(device.id)
-      const fresh = list.filter((e) => !events.get(e.id))
       if (!(device.id in baseline)) {
-        baseline[device.id] = Date.now()
+        // First time we see this device: only events from now on (minus a little slack) are new.
+        baseline[device.id] = Date.now() - 60_000
         setSetting('history_baseline', baseline)
-        for (const e of fresh) events.put({ id: e.id, deviceId: device.id, at: e.start, endAt: e.end, kind: kindOf(e.eventType), subType: e.subType ?? e.eventType, source: 'history' })
-        continue
       }
+      const fresh = list.filter((e) => !events.get(e.id) && e.start >= baseline[device.id])
       if (!fresh.length) continue
       const subtypes = new Map<string, string>()
       if (mode !== 'offline_sim' && fresh.some((e) => e.eventType === 'motion' && !e.subType)) {

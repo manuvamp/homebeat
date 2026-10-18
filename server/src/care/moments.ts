@@ -29,7 +29,7 @@ export function updateMoment(id: string, patch: Partial<Moment>): Moment | undef
   return updated
 }
 
-export const escalateAfterMs = () => Number(process.env.ESCALATE_AFTER_MS ?? 5 * 60_000)
+export const escalateAfterMs = () => Number(process.env.ESCALATE_AFTER_MS ?? household.get().escalateAfterMin * 60_000)
 
 // Delivery channels: always the in-app stream (above); optionally an ntfy.sh topic for phone pushes.
 export async function notify(moment: Moment, level: number) {

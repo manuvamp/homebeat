@@ -34,15 +34,20 @@ const defaultHousehold: Household = {
   homeName: "Asha's home",
   timezone: config.household.timezone,
   members: [
-    { id: 'm1', name: 'Priya', relation: 'Daughter', role: 'primary', escalationOrder: 1 },
-    { id: 'm2', name: 'Rohan', relation: 'Son', role: 'family', escalationOrder: 2 },
+    { id: 'm1', name: 'Priya', relation: 'Daughter', role: 'primary', escalationOrder: 1, phone: '+1 555 0100' },
+    { id: 'm2', name: 'Rohan', relation: 'Son', role: 'family', escalationOrder: 2, phone: '+1 555 0101' },
   ],
   quietHours: { start: '21:30', end: '06:00' },
+  parentPhone: '+1 555 0142',
+  escalateAfterMin: 5,
+  consent: { by: 'Asha', at: Date.parse('2026-09-28T17:00:00Z'), note: 'Asha chose which cameras Homebeat can see and can pause it any time.' },
+  plan: { name: 'Homebeat Family', trialDays: 30, trialEndsAt: Date.parse('2026-11-12T00:00:00Z') },
   ringMode: 'offline_sim',
 }
 
 export const household = {
-  get: () => getSetting<Household>('household', defaultHousehold),
+  // Merge so households stored by older versions pick up new fields.
+  get: () => ({ ...defaultHousehold, ...getSetting<Partial<Household>>('household', {}) }) as Household,
   set: (h: Household) => setSetting('household', h),
   patch: (p: Partial<Household>) => setSetting('household', { ...household.get(), ...p }),
 }

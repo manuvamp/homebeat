@@ -5,6 +5,7 @@ import fastifyStatic from '@fastify/static'
 import Fastify from 'fastify'
 import { checkQuiet } from './care/engine.ts'
 import { runDueJobs } from './care/jobs.ts'
+import { pruneOldData } from './care/retention.ts'
 import { seedIfEmpty } from './care/seed.ts'
 import { tickVisits } from './care/visits.ts'
 import { config, ROOT } from './config.ts'
@@ -48,6 +49,8 @@ setInterval(() => {
   if (ringMode() !== 'linked') void pollHistory()
 }, config.ring.pollMs)
 tickVisits()
+pruneOldData()
+setInterval(() => pruneOldData(), 6 * 3600_000)
 
 await app.listen({ port: config.port, host: '0.0.0.0' })
 console.log(`Homebeat on http://localhost:${config.port}  (Ring: ${ringMode()}, AI: ${config.ai.provider})`)

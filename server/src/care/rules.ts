@@ -61,7 +61,7 @@ const SYSTEM = `You translate a family member's plain-English instruction for Ho
 - expected_visit: a helper who should come regularly. params {who: "Maria (BrightCare)", label: "Home aide", visitorType: "care_worker"|"delivery"|"family"|"service", days: [0-6, 0=Sunday], windowStart: "HH:MM", windowEnd: "HH:MM", graceMin: number, expectedMinutes: number, vehicleHint?: "silver hatchback"}
 - package_waiting: a package left outside too long. params {minutes}
 - quiet_hours: any door activity in a time range. params {start: "HH:MM", end: "HH:MM"}
-- no_activity: nobody in or out for too long during the day. params {hours, from: "HH:MM", to: "HH:MM"}
+- no_activity: nobody in or out for too long during the day. params {hours (number, required), from: "HH:MM", to: "HH:MM"}. "Hasn't left by 2pm" means hours = time from 'from' (default 08:00) to 2pm.
 - unknown_vehicle: an unfamiliar vehicle parked too long. params {minutes}
 - custom_watch: any other visual condition. params {question: a yes/no question about a single camera frame}
 Actions: {"type":"notify","who":"primary"|"family"}, {"type":"chime","slot":"ring-appstore-event-1"} (plays a soft tone on the parent's Ring Chime, good for nudging the parent), {"type":"live_view"}, {"type":"escalate","afterMin":n}.
@@ -72,12 +72,22 @@ Reply with only the JSON object {template, summary, params, actions, severity}.`
 export async function compileRule(english: string): Promise<CompiledRule> {
   const parent = household.get().parentName
   if (aiEnabled()) {
-    try {
-      const raw = await askJson<CompiledRule>({ system: SYSTEM, prompt: `Parent's name: ${parent}.\nInstruction: ${english}`, model: 'text', maxTokens: 400 })
-      return validate(Compiled.parse(raw) as CompiledRule)
-    } catch (err) {
-      console.warn('[rules] model compile failed, using fallback:', (err as Error).message)
+    let feedback = ''
+    // One repair round: if the JSON doesn't validate, show the model the exact problem and ask again.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const raw = await askJson<CompiledRule>({
+          system: SYSTEM,
+          prompt: `Parent's name: ${parent}.\nInstruction: ${english}${feedback ? `\n\nYour previous answer was rejected: ${feedback}. Fix it and include every required param.` : ''}`,
+          model: 'text',
+          maxTokens: 400,
+        })
+        return validate(Compiled.parse(raw) as CompiledRule)
+      } catch (err) {
+        feedback = (err as Error).message.slice(0, 300)
+      }
     }
+    console.warn('[rules] model compile failed, using fallback:', feedback)
   }
   return validate(fallbackCompile(english, parent))
 }

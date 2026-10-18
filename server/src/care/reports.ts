@@ -119,6 +119,11 @@ export function funnelStats(days: number): FunnelStats {
     notified: getSetting('notify_stats', { notified: 0 }).notified,
     costUsd: list.reduce((s, a) => s + a.totalCostUsd, 0),
     naiveCostUsd: raw * config.ai.visionCallUsd,
+    stageMs: [0, 1, 2, 3].map((n) => {
+      const ran = list.flatMap((a) => a.stages.filter((s) => s.stage === n && s.ran))
+      return ran.length ? Math.round(ran.reduce((sum, s) => sum + s.ms, 0) / ran.length) : 0
+    }) as FunnelStats['stageMs'],
+    visionCallUsd: config.ai.visionCallUsd,
   }
 }
 

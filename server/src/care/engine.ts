@@ -29,21 +29,31 @@ export function fastDemo() {
 }
 
 // Snapshot for an event: Ring image API "at_timestamp", falling back to "latest_in_range".
+// The image endpoint only returns media that already exists; right after a motion event the recording may
+// still be uploading and Ring answers 416 MEDIA_NOT_FOUND. So: at_timestamp (±10 s tolerance on Ring's side),
+// then latest_in_range, with a short backoff between rounds.
 async function frameFor(event: RingEventRecord, device: Device): Promise<{ jpeg: Buffer; url: string } | { error: string }> {
   if (device.encrypted) return { error: 'end-to-end encrypted device' }
   const ring = api()
   const at = event.at + 1500 // a beat after the trigger, when the subject is usually in frame
-  try {
-    const shot = await ring.snapshot(event.deviceId, { type: 'at_timestamp', timestamp: Math.min(at, Date.now()), width: 1280, height: 720 })
-    return { jpeg: shot.bytes, url: saveMedia(`ev_${safe(event.id)}`, shot.bytes) }
-  } catch (first) {
-    try {
-      const shot = await ring.snapshot(event.deviceId, { type: 'latest_in_range', start: event.at - 5_000, end: Math.min(event.at + 30_000, Date.now()), width: 1280, height: 720 })
-      return { jpeg: shot.bytes, url: saveMedia(`ev_${safe(event.id)}`, shot.bytes) }
-    } catch (err) {
-      return { error: (err as Error).message.slice(0, 80) || (first as Error).message.slice(0, 80) }
+  let lastError = ''
+  for (const wait of [0, 3_000, 6_000, 10_000]) {
+    if (wait) await new Promise((r) => setTimeout(r, wait))
+    for (const req of [
+      { type: 'at_timestamp' as const, timestamp: Math.min(at, Date.now()), width: 1280, height: 720 },
+      { type: 'latest_in_range' as const, start: event.at - 5_000, end: Math.min(event.at + 30_000, Date.now()), width: 1280, height: 720 },
+    ]) {
+      try {
+        const shot = await ring.snapshot(event.deviceId, req)
+        return { jpeg: shot.bytes, url: saveMedia(`ev_${safe(event.id)}`, shot.bytes) }
+      } catch (err) {
+        lastError = (err as Error).message.slice(0, 80)
+        const status = (err as { status?: number }).status
+        if (status && status !== 416 && status !== 404 && status < 500) return { error: lastError }
+      }
     }
   }
+  return { error: lastError || 'no media' }
 }
 
 const safe = (id: string) => id.replace(/[^a-zA-Z0-9_-]/g, '').slice(-60)
