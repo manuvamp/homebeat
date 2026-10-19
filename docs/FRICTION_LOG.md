@@ -1,6 +1,6 @@
 # Friction log: building Homebeat on the Ring Partner API
 
-Written while building, October 19-23 2026. Each entry: task, steps, expected vs. actual, severity,
+Written while building, October 18-19 2026. Each entry: task, steps, expected vs. actual, severity,
 workaround, suggestion. Severity: **High** blocks or risks certification, **Medium** costs hours or forces a
 guess, **Low** papercut.
 
