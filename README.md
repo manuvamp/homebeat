@@ -10,7 +10,7 @@ outside after 30 minutes*, *someone was at the door at 10:41 PM*. It never uses 
 Built for the **Ring track** of *Build, Ship, Shape: Amazon Developer Hackathon* (October 2026).
 Priority categories: **caretaking**, **access control**, **accessibility**.
 
-> Demo video: [youtu.be/bvZVcpgP4_w](https://youtu.be/bvZVcpgP4_w) · Ring integration details: [docs/RING_INTEGRATION.md](docs/RING_INTEGRATION.md) ·
+> Demo video: [youtu.be/HceWNLPfjC4](https://youtu.be/HceWNLPfjC4) · Ring integration details: [docs/RING_INTEGRATION.md](docs/RING_INTEGRATION.md) ·
 > Friction log: [docs/FRICTION_LOG.md](docs/FRICTION_LOG.md) · Product feedback: [docs/FEEDBACK.md](docs/FEEDBACK.md)
 
 ---
